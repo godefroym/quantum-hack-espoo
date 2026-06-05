@@ -1,31 +1,94 @@
-# quantum-hack-espoo
+# Quantum Systemic Stress Scenario Discovery
 
-## Problem: Maximal Plausible Cascade Set
+A quantum-assisted stress-testing MVP that uses an entanglement-structured parameterized circuit interface to generate correlated financial default scenarios, then evaluates systemic contagion with a classical cascade simulator.
 
-**Graph.** Financial exposure network $G=(V,E,w)$ with entities $V=\{1,\dots,n\}$ (banks, funds, CCPs, corporates, sovereigns), exposure weights $w_{ij}\ge0$ (loss to $i$ if $j$ defaults), and capital buffers $c_i>0$.
+## Problem
 
-**Cascade.** For seed $x\in\{0,1\}^n$, default propagates until fixed point $s(x)$, where $i$ fails iff $\sum_{j\in N(i)} w_{ij}\,s_j > c_i$. Cascade size: $F(x)=\sum_i s_i(x)$.
+Banks, insurers, funds, corporates, sovereigns, and market utilities are linked by directed financial exposures. Stress testing asks which plausible initial default scenarios can trigger severe downstream cascades. Hand-designed scenarios are useful but sparse; independent sampling misses correlated shocks; basic copulas are strong baselines but may not explore the same crisis tail.
 
-**Plausibility.** $\Pi(x)=\sum_{i:x_i=1}\ln p_i + \sum_{i<j} J_{ij}\,x_i x_j$, with $p_i$ the marginal default probability and $J_{ij}$ rewarding empirically correlated co-failure.
+## Approach
 
-**Objective.** Worst *plausible* nightmare, not worst possible:
+The MVP keeps the comparison honest:
 
-$$x^\star=\arg\max_{x\in\{0,1\}^n} F(x)\quad\text{s.t.}\quad \Pi(x)\ge\tau,\;\;\textstyle\sum_i x_i\le k.$$
+- Same synthetic financial network.
+- Same marginal default probabilities.
+- Same pairwise dependency targets.
+- Same deterministic classical contagion simulator.
+- Different scenario generators.
 
-Budget $k$ = simultaneous shocks; threshold $\tau$ = believability.
+Implemented generators:
 
-**Hardness.** $x\mapsto F(x)$ is a nonlinear, nonlocal fixed point over a combinatorial feasible set; the decision version is NP-hard (embeds influence-maximization).
+- Independent Bernoulli baseline.
+- Gaussian copula baseline.
+- Student-t copula baseline.
+- `EntangledPQCGenerator`, a quantum-native scenario generator interface with a runnable Born-inspired fallback sampler for environments without Qiskit.
 
-**QUBO / QAOA.** Linearizing propagation and folding constraints as penalties:
+Headline comparison:
 
-$$H = -\sum_i s_i + \lambda_1\big(\tau-\Pi(x)\big)_+ + \lambda_2\big(\textstyle\sum_i x_i - k\big)_+^2,$$
+> Under matched marginals and pairwise dependencies, which generator samples the most severe plausible contagion tails?
 
-a quadratic pseudo-Boolean cost Hamiltonian $H_C$ over $n$ qubits (one per entity).
+## What Is Quantum-Native
 
-**Entanglement is the encoding.** Each quadratic term $w_{ij},J_{ij}$ generates a two-qubit gate $e^{-i\gamma\theta_{ij}Z_iZ_j}$ on the linked pair. The circuit's entanglement graph *is* $G$: qubits $i,j$ entangle iff entities $i,j$ are financially coupled. Separable subsystems = independent clusters; entangled subsystems = correlated risk. The state's correlations are the contagion correlations.
+Each qubit represents one financial entity:
 
-> **Caveat.** $H_C$ captures few propagation rounds; the true $F(x)$ is the full iterated fixed point. We restrict to the linearized threshold model.
+- `|0>` means the entity survives the initial shock.
+- `|1>` means the entity initially defaults.
 
-# Easy words 
+Single-qubit `Ry` rotations encode individual default tendencies. Entangling interactions follow the exposure/dependency graph, so linked institutions are sampled from a non-factorized joint distribution. The generated samples are binary default scenarios, not final cascade states.
 
-Risk assessment over financial entities. Do not need to stick exactly with the above formulation.
+## What This Does Not Claim
+
+- The quantum circuit does not simulate the full financial cascade.
+- Entanglement is not treated as literal financial contagion.
+- No quantum advantage is claimed.
+- The goal is to benchmark whether a quantum-native generator changes the tail of sampled systemic crises under the same evaluator.
+
+## Project Structure
+
+```text
+src/systemic_risk/
+  spec.py                 # SystemSpec validation and JSON/NPZ IO
+  data/                   # deterministic synthetic network generation
+  generators/             # Bernoulli, copula, and PQC-style generators
+  simulator/              # deterministic fixed-point cascade engine
+  evaluation/             # metrics and comparison harness
+  visualization/          # graph plots and crisis cards
+  utils/
+scripts/
+  run_mvp.py
+  run_scaling_experiment.py
+tests/
+app/
+notebooks/
+```
+
+## Run The MVP
+
+```bash
+python -m pip install -r requirements.txt
+python scripts/run_mvp.py
+```
+
+Expected outputs in `outputs/`:
+
+- `network.png`
+- `comparison.csv`
+- one crisis card per generator
+- `synthetic_system.json`
+
+Run tests:
+
+```bash
+pytest
+```
+
+Optional Streamlit app:
+
+```bash
+python -m pip install streamlit
+streamlit run app/streamlit_app.py
+```
+
+## Scientific Framing
+
+The quantum role is scenario generation, not direct cascade simulation. A generator proposes correlated initial defaults. The classical simulator then evaluates the true fixed-point cascade over the same exposure matrix and capital buffers for every generator. This makes the MVP generator-agnostic and keeps the benchmark focused on crisis-tail sampling rather than on changing the contagion engine.
