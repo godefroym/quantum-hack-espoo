@@ -235,6 +235,61 @@ _TYPE_LABEL: dict[str, str] = {
     "CCP": "CCP",
 }
 
+# Descriptive, type-specific institution names so the synthetic network reads like a real
+# roster ("Global Bank A", "Life Insurer", "Central Counterparty") instead of "Bank 01".
+# Drawn in order per type; once a pool is exhausted a "(2)", "(3)" suffix is appended.
+_TYPE_NAME_POOL: dict[str, list[str]] = {
+    "bank": [
+        "Global Bank A", "Global Bank B", "Continental Bank", "Regional Bank",
+        "Community Bank", "Mortgage Lender", "Trade Finance Bank", "Investment Bank",
+        "Merchant Bank", "Universal Bank", "Savings Bank", "Commercial Bank",
+        "Private Bank", "Custody Bank", "Cooperative Bank", "Digital Bank",
+    ],
+    "insurer": [
+        "Life Insurer", "Reinsurer", "Health Insurer", "Property Insurer",
+        "Casualty Insurer", "Credit Insurer", "Title Insurer", "Specialty Insurer",
+    ],
+    "fund": [
+        "Pension Fund", "Credit Fund", "Real Estate Fund", "Money Market Fund",
+        "Hedge Fund", "Sovereign Wealth Fund", "Mutual Fund", "Asset Manager",
+        "Private Equity Fund", "Infrastructure Fund", "Bond Fund", "Equity Fund",
+    ],
+    "corporate": [
+        "Industrial Corporate", "Energy Corporate", "Retail Corporate", "Transport Corporate",
+        "Telecom Corporate", "Utility Corporate", "Healthcare Corporate", "Materials Corporate",
+        "Consumer Goods Corporate", "Technology Corporate", "Construction Corporate",
+        "Aerospace Corporate",
+    ],
+    "sovereign": [
+        "Sovereign A", "Sovereign B", "Sovereign C", "Sovereign D", "Sovereign E",
+    ],
+    "CCP": [
+        "Central Counterparty", "Payments Utility", "Securities Depository", "Clearing House",
+    ],
+}
+
+
+def _descriptive_names(node_types: list[str]) -> list[str]:
+    """Assign a descriptive, unique name to each node from its type's name pool.
+
+    Names are handed out in pool order per type; if a type has more nodes than pool entries,
+    later ones get a ``" (2)"`` / ``" (3)"`` suffix so every name stays unique. Falls back to
+    ``"<Type> NN"`` for any type without a pool.
+    """
+    counters: dict[str, int] = {}
+    names: list[str] = []
+    for node_type in node_types:
+        idx = counters.get(node_type, 0)
+        counters[node_type] = idx + 1
+        pool = _TYPE_NAME_POOL.get(node_type)
+        if not pool:
+            names.append(f"{_TYPE_LABEL.get(node_type, node_type.title())} {idx + 1:02d}")
+            continue
+        base = pool[idx % len(pool)]
+        cycle = idx // len(pool)
+        names.append(base if cycle == 0 else f"{base} ({cycle + 1})")
+    return names
+
 
 def _allocate_types(n: int) -> list[tuple[str, str]]:
     """Deterministically allocate ``n`` institutions across types by target weights.
@@ -336,12 +391,9 @@ def make_scalable_system(n: int = 54, seed: int = 11) -> SystemSpec:
     node_types = [a[0] for a in allocation]
     clusters = [a[1] for a in allocation]
 
-    # Stable, readable per-type names (Bank 01, Bank 02, ...).
-    counters: dict[str, int] = {}
-    node_names: list[str] = []
-    for node_type in node_types:
-        counters[node_type] = counters.get(node_type, 0) + 1
-        node_names.append(f"{_TYPE_LABEL[node_type]} {counters[node_type]:02d}")
+    # Descriptive, type-specific names ("Global Bank A", "Life Insurer", ...) so the
+    # network reads like a named roster rather than anonymous "Bank 01" placeholders.
+    node_names = _descriptive_names(node_types)
 
     ratings, p = _assign_ratings(node_types, rng)
 
