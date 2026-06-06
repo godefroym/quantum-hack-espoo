@@ -1,0 +1,34 @@
+firm,srisk_pct,lrmes,leverage,source
+# NOT FETCHED — see reason below. No rows could be obtained without fabricating data.
+#
+# Target columns (per V-Lab SRISK rankings table): firm, SRISK%, LRMES, LVG (leverage).
+#
+# WHY EMPTY:
+#   https://vlab.stern.nyu.edu/srisk is a client-rendered Next.js application.
+#   The ranking table (column labels confirmed in the page i18n bundle:
+#   "SRISK ($m)", "LRMES", "LVG") is populated at runtime by a client-side
+#   data call; the static HTML and the page's __NEXT_DATA__ blob contain only
+#   geo/country metadata and UI strings, NOT the firm-level rows.
+#   The Next.js data endpoint /_next/data/<buildId>/srisk.json returns 404
+#   (build id rotates), and the per-portfolio analysis pages
+#   (e.g. https://vlab.stern.nyu.edu/analysis/RISK.USFIN-MR.MES) likewise embed
+#   no numeric firm rows in static HTML. Extracting the table requires executing
+#   the page JS (headless browser) to capture the runtime XHR, which is not
+#   possible from this fetch-only environment. Per project policy we do not
+#   fabricate data.
+#
+# HOW TO OBTAIN (documented method):
+#   1. Manual (simplest, free): open https://vlab.stern.nyu.edu/srisk , choose a
+#      portfolio (e.g. "United States — Financials"), and use the table's export /
+#      copy the rendered TOP-10 (and full) table of firm / SRISK ($m) / SRISK% /
+#      LRMES / LVG into this CSV.
+#   2. Headless scrape: load the page in Playwright/Puppeteer, wait for the table
+#      network request to resolve, and capture the JSON response that backs the
+#      grid (inspect DevTools > Network while the SRISK table loads to get the
+#      exact backend URL + query params, which are not in the static bundle).
+#   3. Docs / methodology: https://vlab.stern.nyu.edu/docs/srisk
+#      Landing page:        https://vlab.stern.nyu.edu/srisk
+#      Analysis pages:      https://vlab.stern.nyu.edu/analysis/RISK.USFIN-MR.MES
+#                           https://vlab.stern.nyu.edu/analysis/RISK.WORLDFIN-MR.GMES
+#   License: free, open-access (academic; NYU Stern V-Lab). Attribution expected.
+#   Model mapping: firm-level SRISK% / LRMES -> p_i (distress/default propensity).
