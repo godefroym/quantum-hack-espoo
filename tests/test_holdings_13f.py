@@ -12,6 +12,8 @@ from systemic_risk.data_network.sources.holdings_13f import (
     liquidity_weighted_overlap,
     load_holdings,
     panel_from_frame,
+    rdate_to_yearqtr,
+    sample_holdings_csv,
     synthetic_holdings_panel,
     validated_overlap_network,
 )
@@ -27,9 +29,58 @@ def test_column_spec_detects_standard_names() -> None:
     assert spec.quarter == "PERIOD"
 
 
+def test_column_spec_detects_real_edgar_schema() -> None:
+    # The real holdings.csv: asset id is CRSP permno, quarter is rdate.
+    spec = ColumnSpec.detect(["cik", "rdate", "fdate", "form", "permno", "shares",
+                              "value", "accession"])
+    assert spec.institution == "cik"
+    assert spec.asset == "permno"
+    assert spec.quarter == "rdate"
+    assert spec.value == "value"
+    assert spec.shares == "shares"
+
+
 def test_column_spec_raises_without_required_columns() -> None:
     with pytest.raises(KeyError):
-        ColumnSpec.detect(["name", "value"])  # no CUSIP / CIK
+        ColumnSpec.detect(["name", "value"])  # no asset / institution
+
+
+@pytest.mark.parametrize(
+    "rdate,expected",
+    [("2008-03-31", 2008.0), ("2008-06-30", 2008.25),
+     ("2008-09-30", 2008.5), ("2008-12-31", 2008.75)],
+)
+def test_rdate_to_yearqtr(rdate: str, expected: float) -> None:
+    assert rdate_to_yearqtr(rdate) == expected
+
+
+def test_sample_holdings_csv_filters_quarter_and_top_filers(tmp_path) -> None:
+    # Tiny stand-in for the giant holdings.csv, in the real EDGAR-Parsing schema.
+    rows = []
+    for cik, permno, value, rdate in [
+        ("A", "1", "900", "2008-09-30"), ("A", "2", "900", "2008-09-30"),
+        ("B", "1", "50", "2008-09-30"),  ("C", "3", "10", "2008-09-30"),
+        ("A", "1", "999", "2007-06-30"),  # other quarter -> excluded
+    ]:
+        rows.append({"cik": cik, "rdate": rdate, "fdate": rdate, "form": "13F-HR",
+                     "permno": permno, "shares": "1", "value": value,
+                     "accession": "x"})
+    src = tmp_path / "holdings.csv"
+    pd.DataFrame(rows).to_csv(src, index=False)
+
+    dst = sample_holdings_csv(src, tmp_path / "slice.csv", rdates=("2008-09-30",),
+                              top_institutions=2, chunksize=2)
+    out = pd.read_csv(dst, dtype=str)
+    assert set(out["rdate"].unique()) == {"2008-09-30"}        # only the wanted quarter
+    assert set(out["cik"].unique()) == {"A", "B"}              # top-2 by AUM (C dropped)
+
+
+def test_sample_holdings_csv_reports_available_when_quarter_missing(tmp_path) -> None:
+    src = tmp_path / "holdings.csv"
+    pd.DataFrame([{"cik": "A", "rdate": "2008-09-30", "permno": "1",
+                   "shares": "1", "value": "10"}]).to_csv(src, index=False)
+    with pytest.raises(ValueError, match="Available report dates"):
+        sample_holdings_csv(src, tmp_path / "s.csv", rdates=("1999-12-31",))
 
 
 def test_load_holdings_missing_file(tmp_path) -> None:

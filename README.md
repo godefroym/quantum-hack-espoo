@@ -43,38 +43,7 @@ A = U_QCBM (load P(x)) -> U_severity (cascade oracle) -> mark severe
 
 ## Run
 
-<<<<<<< HEAD
 This project is managed with [uv](https://docs.astral.sh/uv/) ([install it](https://docs.astral.sh/uv/getting-started/installation/)), which provisions the pinned interpreter, virtual environment, and locked dependencies for you. `uv run` executes inside that environment — nothing to activate.
-=======
-```text
-src/systemic_risk/
-  spec.py                 # flat SystemSpec validation and JSON/NPZ IO (the B/C/D contract)
-  edge_metrics.py         # directed risk-adjusted edge weights (LGD, maturity, wrong-way, …)
-  data/                   # deterministic synthetic network generation
-  data_network/           # PART A: real data -> canonical layered NetworkSpec -> SystemSpec
-    sources/              #   roster (real anchor), equity_returns (Yahoo), synthetic (scaling)
-    clean / estimate      #   normalize/reconcile; marginals, correlation, balance-sheet totals
-    reconstruct           #   bilateral exposures: max_entropy (RAS) | min_density (pluggable)
-    cluster / assemble    #   community detection + stability; layer assembly
-    validate              #   round-trip + cluster-stability + B/C/D contract conformance
-  generators/             # Bernoulli, copula, and entangled generators
-  simulator/              # deterministic cascade, exogenous shocks, LGD, round diagnostics
-  evaluation/             # metrics and comparison harness
-  visualization/          # graph plots (incl. community plot) and crisis cards
-  utils/
-scripts/
-  run_mvp.py
-  run_scaling_experiment.py
-  build_system_spec.py    # PART A end-to-end: build + validate + render the real network
-tests/
-app/
-notebooks/
-```
-
-## Run The MVP
-
-This project is managed with [uv](https://docs.astral.sh/uv/) ([install it](https://docs.astral.sh/uv/getting-started/installation/)). `uv` provisions the pinned Python interpreter (`.python-version`), creates the virtual environment, and installs the locked dependencies (`uv.lock`) for you.
->>>>>>> 2e4f428 (Current state of data prep)
 
 ```bash
 uv sync                                      # core + dev dependencies
@@ -108,15 +77,6 @@ uv run python scripts/build_system_spec.py --refresh-equity     # re-fetch the c
 
 Outputs land in `outputs/data_network/`: `network_spec.json` (the layered `NetworkSpec`), `system_spec.json` / `.npz` (the flat `SystemSpec`), and `community_network.png`.
 
-- **Nodes** — a curated roster of 28 real, publicly listed G-SIB / large banks (`data/external/banks/gsib_roster.csv`).
-- **Marginals `p_i`** — each bank's public S&P rating → 1-year PD via the committed Moody's Exhibit-17 table.
-- **Correlation** — real daily equity-return correlation (755 obs, 2021–2024; `data/external/banks/equity_corr.csv`). This is the genuine network signal: it drives community detection and is the latent asset-return correlation the copula baselines threshold into correlated defaults.
-- **Edges** — bilateral exposures are **reconstructed** from per-node interbank totals (real bilateral matrices are confidential — the field-standard move), pluggable between `max_entropy` (RAS/IPF, dense) and `min_density` (Anand-style, sparse).
-- **Communities** — greedy-modularity detection on the correlation graph; the committed snapshot yields three stable communities (North America, Europe/UK/LatAm, Japan; mean ARI ≈ 0.96 under perturbation).
-
-<<<<<<< HEAD
-The pipeline lives in `src/systemic_risk/data_network/`; see that package's README for the layered `NetworkSpec` (frozen empirical layer + swappable reconstructed layer + provenance) and `data/external/CATALOG.md` for full per-dataset provenance and licensing. End-to-end checks (round-trip, cluster stability, downstream contract):
-=======
 ```text
 roster (28 banks + 10 corporates) ─┐
 equity returns (Yahoo) ────────────┼─► estimate ─► reconstruct ─► risk-adjust ─► cluster ─► assemble ─► validate
@@ -160,7 +120,6 @@ fields each consumer is allowed to see.
 
 **Check everything** (the A end-to-end test — load raw → emit a valid spec → round-trip →
 stable clusters → B/C/D conformance):
->>>>>>> 2e4f428 (Current state of data prep)
 
 ```bash
 uv run pytest tests/test_data_network.py -q

@@ -156,20 +156,23 @@ All sources are free / public. Licenses recorded per row. URLs verified during t
 
 ## Documented-only (verified URL/method; not committed) 📝
 
-### EDGAR-Parsing 13F holdings (`holdings_13f/`) 📝 — common-asset / fire-sale channel
-- **Wanted:** validated SEC Form 13F institutional holdings (1999–2020) to build the
-  **portfolio-overlap network** (two institutions linked when they hold the same securities →
-  fire-sale spillovers). The real-data counterpart of the fire-sale layer omitted from
+### EDGAR-Parsing 13F holdings (`13F/` raw → `holdings_13f/` slices) ✅ (local, git-ignored)
+- **Contents:** validated SEC Form 13F institutional holdings (1999–2020) → the
+  **portfolio-overlap network** (institutions linked when they hold the same securities →
+  fire-sale spillovers). The real-data counterpart of the fire-sale layer in
   `src/systemic_risk/edge_metrics.py`.
-- **Files:** `holdings.csv` (CIK, CUSIP, value, shares — the institution×asset matrix;
-  **essential**), `biographical.csv` (manager↔CIK identities), `crspq.csv` (CRSP
-  prices/volume/market-cap → per-asset illiquidity for the fire-sale weighting). Skip the raw
-  parsing intermediates.
-- **Why not committed:** multi-GB bulk on Dropbox (not a fetch-only endpoint); download a few
-  quarters as needed. Parsed by `data_network/sources/holdings_13f.py`, which runs/tests
-  offline against a synthetic panel until the files are present.
+- **Files (present locally under `data/external/13F/`, git-ignored for size):**
+  - `holdings.csv` (~5 GB) — columns `cik, rdate, fdate, form, permno, shares, value,
+    accession`. **Asset id = CRSP `permno`** (not CUSIP); **quarter = `rdate`** (quarter-end).
+  - `crspq.csv` (~43 MB) — `permno, ncusip, yearqtr, prc, shrout, split` → market cap
+    (`|prc|*shrout`) per quarter → asset illiquidity.
+  - `biographical/` — manager name ↔ CIK.
+- **Sampling:** `holdings.csv` is too large to load; `sample_holdings_csv`
+  (`data_network/sources/holdings_13f.py`) streams it once and writes a single-quarter,
+  top-N-filer slice to `holdings_13f/holdings_slice_<rdate>.csv` (a few MB). Build the layer:
+  `uv run python scripts/build_13f_overlap.py --rdate 2008-09-30 --top 250`.
 - **Format:** CSV. **License:** open-source re-parse of public SEC EDGAR filings (CRSP slice
-  is for validation). **Source:** https://elsaifym.github.io/EDGAR-Parsing/ (GitHub:
+  for validation). **Source:** https://elsaifym.github.io/EDGAR-Parsing/ (GitHub:
   elsaifym/EDGAR-Parsing).
 - **Method:** Gualdi, Cimini, Primicerio, Di Clemente & Challet 2016, *Statistically validated
   network of portfolio overlaps and systemic risk* (arXiv:1603.05914) — hypergeometric

@@ -14,6 +14,9 @@ outputs/
 .envrc
 
 # Large 13F / CRSP downloads (keep the directory's README, ignore the bulk data)
+# Raw bulk source files (holdings.csv ~5GB, crspq.csv, biographical/) — never commit these.
+data/external/13F/
+# Carved single-quarter slices written by sample_holdings_csv.
 data/external/holdings_13f/*.csv
 data/external/holdings_13f/*.Rdata
 data/external/holdings_13f/processed_tables/

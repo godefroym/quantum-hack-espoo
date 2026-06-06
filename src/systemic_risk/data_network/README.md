@@ -15,7 +15,7 @@ sources/  ->  clean  ->  estimate  ->  reconstruct  ->  cluster  ->  assemble  -
 | `sources/roster.py` | the real anchor: 38 real entities — 28 banks + 10 corporates (`data/external/banks/gsib_roster.csv`) |
 | `sources/equity_returns.py` | real daily equity-return correlation (Yahoo) + committed snapshot |
 | `sources/synthetic.py` | calibrated-synthetic source, lifts `make_scalable_system(n≤54)` into a `NetworkSpec` |
-| `sources/holdings_13f.py` | 13F holdings → portfolio-overlap (common-asset / fire-sale) network: matrix, cosine + statistically-validated overlap, liquidity-weighted & directed fire-sale matrices |
+| `sources/holdings_13f.py` | 13F holdings → portfolio-overlap (common-asset / fire-sale) network: **streaming sampler** (carves one quarter out of the ~5 GB `holdings.csv`), matrix, cosine + statistically-validated overlap, liquidity-weighted & directed fire-sale matrices, CRSP illiquidity |
 | `clean.py` | normalization + ID reconciliation; `node_type` (bank/corporate); S&P rating → whole-letter PD bucket |
 | `estimate.py` | marginals `p_i` (Moody's PD table), correlation (equity), interbank/borrowing totals + buffers |
 | `reconstruct.py` | bilateral exposures — `max_entropy` (RAS/IPF) \| `min_density` (Anand-style), pluggable |
@@ -70,6 +70,21 @@ system = nspec.to_system_spec()              # the flat SystemSpec B/C/D consume
 from systemic_risk.data_network.sources import synthetic_network_spec
 big = synthetic_network_spec(n=54, seed=11)
 ```
+
+## 13F portfolio-overlap (common-asset / fire-sale) layer
+
+A *separate* contagion channel whose nodes are **13F asset managers** (not the bank roster).
+The raw `holdings.csv` (~5 GB, keyed by CRSP `permno`) is streamed once into a small
+single-quarter slice, then turned into validated-overlap + fire-sale matrices:
+
+```bash
+uv run python scripts/build_13f_overlap.py --rdate 2008-09-30 --top 250
+uv run pytest tests/test_holdings_13f.py -q
+```
+
+Outputs → `outputs/data_network/overlap_13f/` (matrices `.npz`, `summary.json`, backbone plot).
+See `data/external/holdings_13f/README.md`. It is kept standalone (different node universe)
+rather than fused into `NetworkSpec`.
 
 ## Notes on honesty
 

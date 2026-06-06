@@ -9,9 +9,10 @@ counterpart of the fire-sale layer deliberately left out of ``systemic_risk.edge
 
 Pipeline:
 
-    holdings.csv (CIK, CUSIP, value, shares, quarter)
+    holdings.csv  (cik, rdate, fdate, form, permno, shares, value, accession)  ~5 GB
+        -> sample_holdings_csv  (stream one quarter + top-N filers into a small slice)
         -> HoldingsPanel (long form, normalized columns)
-        -> HoldingsMatrix  H[institution, asset]  (dollar value)
+        -> HoldingsMatrix  H[institution, asset]  (dollar value; asset = CRSP permno)
         -> overlap measures:
              * cosine_overlap            — weighted portfolio similarity (symmetric)
              * validated_overlap_network — hypergeometric statistically-validated links
@@ -19,14 +20,16 @@ Pipeline:
              * directed_fire_sale_matrix — asymmetric loss-to-j-when-i-deleverages
 
 Source data: the EDGAR-Parsing project (https://elsaifym.github.io/EDGAR-Parsing/) publishes
-``holdings.csv`` (validated 13F positions, 1999-2020) and ``crspq.csv`` (CRSP prices/volume for
-asset illiquidity). Download those into ``data/external/holdings_13f/`` (see the module README).
-Nothing here requires the files at import time; a :func:`synthetic_holdings_panel` lets the
-whole module run and be tested offline.
+``holdings.csv`` (validated 13F positions, 1999-2020) and ``crspq.csv`` (CRSP prices / shares
+outstanding for asset market cap -> illiquidity). The real ``holdings.csv`` is ~5 GB and keyed
+by **CRSP permno** (not CUSIP) with the quarter in ``rdate``; :func:`sample_holdings_csv` streams
+it once to carve out a single quarter (a few MB). ``crspq.csv`` is ``permno, ncusip, yearqtr,
+prc, shrout, split`` and maps permno -> market cap per quarter.
 
-NB: the column names below are *guessed* from the standard 13F information-table schema and the
-EDGAR-Parsing outputs; :class:`ColumnSpec.detect` resolves them case-insensitively against a
-list of candidates, and you can always pass an explicit :class:`ColumnSpec`.
+Nothing here requires the files at import time; a :func:`synthetic_holdings_panel` lets the
+whole module run and be tested offline. :class:`ColumnSpec.detect` resolves the real column
+names (and the SEC INFOTABLE CUSIP variants) case-insensitively; pass an explicit
+:class:`ColumnSpec` for anything exotic.
 """
 
 from __future__ import annotations
@@ -37,11 +40,13 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-DEFAULT_HOLDINGS_DIR = (
-    Path(__file__).resolve().parents[4] / "data" / "external" / "holdings_13f"
-)
-DEFAULT_HOLDINGS_CSV = DEFAULT_HOLDINGS_DIR / "holdings.csv"
-DEFAULT_CRSP_CSV = DEFAULT_HOLDINGS_DIR / "crspq.csv"
+_EXTERNAL = Path(__file__).resolve().parents[4] / "data" / "external"
+# Raw bulk downloads live under data/external/13F/ (the big files the user added);
+# small carved slices are written to data/external/holdings_13f/ (git-ignored CSVs).
+DEFAULT_RAW_DIR = _EXTERNAL / "13F"
+DEFAULT_HOLDINGS_CSV = DEFAULT_RAW_DIR / "holdings.csv"
+DEFAULT_CRSP_CSV = DEFAULT_RAW_DIR / "crspq.csv"
+DEFAULT_SLICE_DIR = _EXTERNAL / "holdings_13f"
 
 
 # --------------------------------------------------------------------------- #
@@ -57,13 +62,14 @@ class ColumnSpec:
     shares: str | None = None
     quarter: str | None = None   # reporting period
 
-    # Candidate names tried (case-insensitive) when auto-detecting.
+    # Candidate names tried (case-insensitive) when auto-detecting. Covers the EDGAR-Parsing
+    # schema (asset = CRSP ``permno``, quarter = ``rdate``) and SEC INFOTABLE (CUSIP).
     _INSTITUTION = ("cik", "manager_cik", "filer_cik", "managercik", "filer")
-    _ASSET = ("cusip", "cusip8", "cusip9", "cusip6")
+    _ASSET = ("permno", "cusip", "cusip8", "cusip9", "cusip6", "ncusip")
     _VALUE = ("value", "position_value", "dollar_value", "mktval", "marketvalue", "val")
     _SHARES = ("shares", "shares_held", "sshprnamt", "ssh_prnamt", "shrs", "quantity")
-    _QUARTER = ("quarter", "period", "report_period", "reportperiod", "qtr", "date",
-                "period_of_report", "filing_period")
+    _QUARTER = ("rdate", "quarter", "period", "report_period", "reportperiod", "qtr",
+                "yearqtr", "date", "period_of_report", "filing_period")
 
     @classmethod
     def detect(cls, columns: list[str]) -> "ColumnSpec":
@@ -350,7 +356,145 @@ def directed_fire_sale_matrix(
 
 
 # --------------------------------------------------------------------------- #
+# Streaming sampler: carve one quarter out of the multi-GB holdings.csv
+# --------------------------------------------------------------------------- #
+def sample_holdings_csv(
+    src: str | Path = DEFAULT_HOLDINGS_CSV,
+    dst: str | Path | None = None,
+    *,
+    rdates: tuple[str, ...] = ("2008-09-30",),
+    top_institutions: int | None = 300,
+    institution_col: str = "cik",
+    quarter_col: str = "rdate",
+    asset_col: str = "permno",
+    value_col: str = "value",
+    shares_col: str = "shares",
+    chunksize: int = 1_000_000,
+) -> Path:
+    """Stream the giant ``holdings.csv`` once and write a small single-quarter slice.
+
+    The real file is ~5 GB and cannot be loaded into memory. This reads it in row chunks,
+    keeps only rows whose ``rdate`` is in ``rdates`` (quarter-end snapshot dates, e.g.
+    ``"2008-09-30"``), optionally restricts to the ``top_institutions`` filers by summed
+    position value, and writes a compact CSV (a few MB) to ``dst``. Returns the slice path.
+
+    If none of ``rdates`` are found, raises ``ValueError`` listing the available report dates
+    discovered during the pass, so you can pick a valid quarter without re-scanning blindly.
+    """
+    src = Path(src)
+    if not src.exists():
+        raise FileNotFoundError(f"holdings file not found: {src}")
+    if dst is None:
+        DEFAULT_SLICE_DIR.mkdir(parents=True, exist_ok=True)
+        tag = "_".join(r.replace("-", "") for r in rdates)
+        dst = DEFAULT_SLICE_DIR / f"holdings_slice_{tag}.csv"
+    dst = Path(dst)
+
+    wanted = set(rdates)
+    usecols = [institution_col, quarter_col, asset_col, value_col, shares_col]
+    kept: list[pd.DataFrame] = []
+    seen_rdates: set[str] = set()
+    reader = pd.read_csv(src, usecols=usecols, dtype=str, chunksize=chunksize, low_memory=False)
+    for chunk in reader:
+        seen_rdates.update(chunk[quarter_col].dropna().unique().tolist())
+        hit = chunk[chunk[quarter_col].isin(wanted)]
+        if not hit.empty:
+            kept.append(hit)
+
+    if not kept:
+        sample = sorted(seen_rdates)
+        raise ValueError(
+            f"no rows for rdates={sorted(wanted)}. Available report dates include: "
+            f"{sample[:8]}{' ...' if len(sample) > 8 else ''} ({len(sample)} total)."
+        )
+
+    df = pd.concat(kept, ignore_index=True)
+    df[value_col] = pd.to_numeric(df[value_col], errors="coerce")
+    df = df[df[value_col] > 0]
+
+    if top_institutions is not None:
+        aum = df.groupby(institution_col)[value_col].sum().nlargest(top_institutions)
+        df = df[df[institution_col].isin(aum.index)]
+
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(dst, index=False)
+    return dst
+
+
+def load_or_sample_holdings(
+    rdates: tuple[str, ...] = ("2008-09-30",),
+    *,
+    src: str | Path = DEFAULT_HOLDINGS_CSV,
+    top_institutions: int | None = 300,
+    spec: ColumnSpec | None = None,
+) -> HoldingsPanel:
+    """Return a panel for ``rdates``, building (and caching) the slice from the raw file once.
+
+    Prefers an existing slice in ``data/external/holdings_13f/``; otherwise streams the raw
+    ``holdings.csv`` via :func:`sample_holdings_csv` and reuses the slice next time.
+    """
+    tag = "_".join(r.replace("-", "") for r in rdates)
+    slice_path = DEFAULT_SLICE_DIR / f"holdings_slice_{tag}.csv"
+    if not slice_path.exists():
+        slice_path = sample_holdings_csv(src, slice_path, rdates=rdates,
+                                         top_institutions=top_institutions)
+    return load_holdings(slice_path, spec=spec)
+
+
+# --------------------------------------------------------------------------- #
 # Asset illiquidity from CRSP (optional)
+# --------------------------------------------------------------------------- #
+def rdate_to_yearqtr(rdate: str) -> float:
+    """Map a quarter-end report date to the CRSP ``yearqtr`` code (Q1=.0 … Q4=.75).
+
+    ``"2008-09-30"`` -> ``2008.5`` (Q3). Accepts ``YYYY-MM-DD``; the month determines the
+    quarter (3→.0, 6→.25, 9→.5, 12→.75; other months snap to the nearest quarter).
+    """
+    year, month = int(rdate[:4]), int(rdate[5:7])
+    quarter_offset = {3: 0.0, 6: 0.25, 9: 0.5, 12: 0.75}
+    if month not in quarter_offset:
+        quarter_offset_value = round((month - 1) // 3) * 0.25
+    else:
+        quarter_offset_value = quarter_offset[month]
+    return year + quarter_offset_value
+
+
+def crsp_illiquidity(
+    matrix: HoldingsMatrix,
+    yearqtr: float,
+    crsp_path: str | Path = DEFAULT_CRSP_CSV,
+    default: float | None = None,
+) -> np.ndarray:
+    """Per-asset illiquidity (1 / market cap) aligned to ``matrix.assets`` (CRSP permnos).
+
+    Reads the CRSP quarterly file (``permno, ncusip, yearqtr, prc, shrout, split``), filters to
+    ``yearqtr``, computes market cap ``|prc| * shrout`` and illiquidity ``1 / market_cap`` (a
+    bigger, larger-cap stock absorbs forced sales with less price impact). Assets missing that
+    quarter get ``default`` (the median illiquidity if None). Returns a vector aligned to
+    ``matrix.assets``; use it to weight :func:`liquidity_weighted_overlap` /
+    :func:`directed_fire_sale_matrix`.
+    """
+    crsp_path = Path(crsp_path)
+    if not crsp_path.exists():
+        raise FileNotFoundError(f"CRSP file not found: {crsp_path}")
+    crsp = pd.read_csv(crsp_path, dtype=str, low_memory=False)
+    crsp["yearqtr"] = pd.to_numeric(crsp["yearqtr"], errors="coerce")
+    q = crsp[np.isclose(crsp["yearqtr"], yearqtr)]
+    prc = pd.to_numeric(q["prc"], errors="coerce").abs()      # CRSP prc<0 = bid/ask midpoint
+    shrout = pd.to_numeric(q["shrout"], errors="coerce")      # shares outstanding (thousands)
+    mktcap = (prc * shrout).where(lambda s: s > 0)
+    ill = (1.0 / mktcap)
+    table = (
+        pd.DataFrame({"permno": q["permno"].astype(str).str.strip(), "ill": ill})
+        .dropna()
+        .groupby("permno")["ill"].mean()
+    )
+    fill = float(np.median(table.values)) if (default is None and len(table)) else (default or 1.0)
+    return np.array([float(table.get(str(a), fill)) for a in matrix.assets], dtype=float)
+
+
+# --------------------------------------------------------------------------- #
+# Asset illiquidity from a generic CUSIP-keyed CRSP-style file (SEC route)
 # --------------------------------------------------------------------------- #
 def load_illiquidity(
     matrix: HoldingsMatrix,
