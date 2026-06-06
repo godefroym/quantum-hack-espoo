@@ -1,4 +1,4 @@
-"""Build a SystemSpec for parts B/C/D, end-to-end (Part A deliverable + entrypoint).
+"""SECONDARY (Part A data builder) — build a SystemSpec for parts B/C/D, end-to-end.
 
 WHAT THIS PRODUCES
 ------------------
