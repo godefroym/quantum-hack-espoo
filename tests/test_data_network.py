@@ -10,7 +10,6 @@ from systemic_risk.data_network import (
 )
 from systemic_risk.data_network.cluster import (
     adjusted_rand_index,
-    cluster_with_stability,
     detect_communities,
 )
 from systemic_risk.data_network.clean import reconcile, whole_letter
