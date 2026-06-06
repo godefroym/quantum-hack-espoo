@@ -234,9 +234,15 @@ def partition_blocks(
     """Group qubits into connected components of the entangler graph (capped at ``max_block``).
 
     Components small enough to simulate directly are kept whole; an oversize component is split
-    into ``<= max_block`` chunks (rare -- the within-cluster graph already keeps blocks small).
-    Disconnected qubits become singleton blocks (pure ``RY``, exact).
+    into ``<= max_block`` pieces. The split is **edge-weight aware** (recursive Kernighan-Lin
+    bisection on the entangler weights via
+    :func:`systemic_risk.generators.quantum.budget_clustering.split_oversize_group`), so the cut
+    falls on the *weakest* within-component links instead of an arbitrary index boundary -- the
+    strongly-coupled qubits stay in the same block. Disconnected qubits become singleton blocks
+    (pure ``RY``, exact).
     """
+    from systemic_risk.generators.quantum.budget_clustering import split_oversize_group
+
     parent = list(range(spec.n))
 
     def find(a: int) -> int:
@@ -252,10 +258,24 @@ def partition_blocks(
     for q in range(spec.n):
         groups.setdefault(find(q), []).append(q)
 
+    # Edge weights for the weight-aware splitter: the dependency magnitude on each entangler
+    # (correlation, exposure fallback) so the cut minimises severed dependency. Falls back to
+    # the connectivity graph if the dependency matrix is empty.
+    dependency = np.abs(spec.dependency_matrix())
+    if dependency.max() <= 0.0 and float(np.sum(spec.exposure_matrix)) > 0.0:
+        exposure = spec.exposure_matrix + spec.exposure_matrix.T
+        dependency = exposure / exposure.max()
+    weights = np.zeros((spec.n, spec.n), dtype=float)
+    for i, j in edges:
+        w = float(dependency[i, j]) if dependency[i, j] > 0.0 else 1.0
+        weights[i, j] = weights[j, i] = w
+
     blocks: list[list[int]] = []
     for members in groups.values():
-        for start in range(0, len(members), max_block):
-            blocks.append(members[start : start + max_block])
+        if len(members) <= max_block:
+            blocks.append(members)
+        else:
+            blocks.extend(split_oversize_group(weights, members, max_block))
     return blocks
 
 

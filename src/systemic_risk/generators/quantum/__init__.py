@@ -15,6 +15,13 @@ from systemic_risk.generators.quantum.amplitude_estimation import (
     query_complexity_curve,
     run_mlae,
 )
+from systemic_risk.generators.quantum.budget_clustering import (
+    ClusterPartition,
+    budget_clusters_from_dependency,
+    dependency_for_clustering,
+    discover_clusters,
+    split_oversize_group,
+)
 from systemic_risk.generators.quantum.layout import (
     ClusterResult,
     PairLink,
@@ -29,15 +36,20 @@ from systemic_risk.generators.quantum.layout import (
 
 __all__ = [
     "AmplitudeEstimate",
+    "ClusterPartition",
     "ClusterResult",
     "GroverOperator",
     "PairLink",
     "QueryComplexityPoint",
+    "budget_clusters_from_dependency",
     "build_clustering_layout",
     "build_clustering_layout_from_spec",
     "build_dependency_matrix",
     "build_entanglement_layers",
     "classify_pairs",
+    "dependency_for_clustering",
+    "discover_clusters",
+    "split_oversize_group",
     "mc_queries_for_relative_error",
     "mlae_queries",
     "qae_queries_for_relative_error",

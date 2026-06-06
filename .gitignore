@@ -19,3 +19,6 @@ data/external/holdings_13f/*.Rdata
 data/external/holdings_13f/processed_tables/
 data/external/holdings_13f/raw_filings/
 data/external/holdings_13f/raw_tables/
+
+# Claude Code local agent state (worktrees, etc.)
+.claude/
