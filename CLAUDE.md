@@ -10,19 +10,20 @@ Quantum-native systemic stress testing. An entangled Born-machine generator prop
 ## Run
 
 ```bash
-uv sync                              # core + dev deps into .venv
-uv run python scripts/run_mvp.py     # benchmark -> outputs/
-uv run pytest                        # tests
+uv sync                                      # core + dev deps into .venv
+uv run python scripts/run_demonstration.py   # canonical end-to-end run -> outputs/
+uv run python scripts/run_mvp.py             # fast smoke test / dashboard feed
+uv run pytest                                # tests
 ```
 
 Extras:
 
 ```bash
-uv run --extra app streamlit run app/streamlit_app.py   # dashboard
-uv run --extra quantum python scripts/run_mvp.py        # Qiskit backend
+uv run --extra app streamlit run app/streamlit_app.py   # Streamlit dashboard
+uv run --extra quantum python scripts/run_mvp.py        # Qiskit backend (else exact statevector)
 uv sync --all-extras
 ```
 
 ## Layout
 
-`src/systemic_risk/`: `spec.py` (SystemSpec), `data/` (synthetic network), `generators/` (Bernoulli, copula, entangled), `simulator/` (cascade), `evaluation/` (metrics + harness), `visualization/`. Entry points in `scripts/`; tests in `tests/`.
+`src/systemic_risk/`: `spec.py` (SystemSpec), `data/` (synthetic network + Huang adapter), `data_network/` (Part A: real 28-bank network), `generators/` (Bernoulli, copula, Ising, entangled Born machine), `simulator/` (exposure cascade + Huang fire-sale), `evaluation/` (metrics + harness), `visualization/`. Entry points in `scripts/` (`run_demonstration.py` canonical, `run_mvp.py` smoke test, rest specialized — see README table); tests in `tests/`.
