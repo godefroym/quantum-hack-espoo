@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import numpy as np
 
 from systemic_risk.spec import SystemSpec
+from systemic_risk.utils.ratings import load_rating_pd
 
 
 _TEMPLATE = [
@@ -110,18 +109,15 @@ def make_synthetic_system(n: int = 16, seed: int = 7) -> SystemSpec:
 # Scalable (n up to 54) system generator
 # ---------------------------------------------------------------------------
 #
-# Calibration anchors (see research/README.md sections 1-3 and
-# research/sections/03_statistical_mechanics_ising.md):
-#  - per-rating one-year PDs from S&P / Moody's annual default studies;
-#  - spec-grade aggregate PD ~3.8-4.2%;
-#  - sparse, scale-free, core-periphery interbank topology (gamma ~ 2-3, ~20% core),
-#    NOT Erdos-Renyi (Bardoscia et al. 2021; section 01);
+# Calibration anchors (research/README.md s.1-3):
+#  - per-rating 1-year PDs from the shared Moody's/S&P table (utils.ratings);
+#  - sparse scale-free core-periphery interbank topology (gamma ~ 2-3, ~20% core),
+#    not Erdos-Renyi (Bardoscia et al. 2021);
 #  - capital buffers ~4-8% of assets; single-counterparty exposure <= 25% of Tier-1;
-#    interbank-asset share ~20% of total assets (Gai-Kapadia / Basel; section 01).
+#    interbank-asset share ~20% of total assets (Gai-Kapadia / Basel).
 
-# Per-institution-type rating mix: ordered list of (rating, weight). Weights are
-# unnormalised relative frequencies within a type. Banks/insurers/CCPs sit at the
-# investment-grade end; funds and corporates carry more speculative-grade mass.
+# Per-institution-type rating mix: ordered (rating, unnormalised weight). Banks/insurers/CCPs
+# sit at the investment-grade end; funds and corporates carry more speculative-grade mass.
 _TYPE_RATING_MIX: dict[str, list[tuple[str, float]]] = {
     "bank": [("A", 0.30), ("BBB", 0.50), ("BB", 0.18), ("B", 0.02)],
     "insurer": [("AA", 0.20), ("A", 0.45), ("BBB", 0.32), ("BB", 0.03)],
@@ -131,80 +127,7 @@ _TYPE_RATING_MIX: dict[str, list[tuple[str, float]]] = {
     "CCP": [("AA", 0.55), ("A", 0.45)],
 }
 
-# Literature-default one-year default probabilities by rating (S&P/Moody's studies;
-# research/README.md section 3). Mid-range values within the cited bands. These are the
-# fallback if the real Moody's PD CSV is absent.
-_RATING_PD_DEFAULT: dict[str, float] = {
-    "AAA": 0.0001,
-    "AA": 0.0004,
-    "A": 0.0008,
-    "BBB": 0.0025,
-    "BB": 0.0140,
-    "B": 0.0550,
-    "CCC": 0.2200,
-}
-
-# Real Moody's whole-letter ratings (Exhibit 17) -> our S&P-style rating keys.
-_MOODYS_TO_RATING: dict[str, str] = {
-    "Aaa": "AAA",
-    "Aa": "AA",
-    "A": "A",
-    "Baa": "BBB",
-    "Ba": "BB",
-    "B": "B",
-    "Caa-C": "CCC",
-}
-
-# Optional real PD source populated by the data agent (research/README.md section 5).
-_RATING_PD_CSV = (
-    Path(__file__).resolve().parents[3]
-    / "data"
-    / "external"
-    / "ratings"
-    / "moodys_pd_by_rating.csv"
-)
-
-
-def _load_rating_pd() -> tuple[dict[str, float], str]:
-    """Return ``(rating -> 1y PD, source)``, preferring the real Moody's CSV.
-
-    Reads the whole-letter (Exhibit 17) rows of ``moodys_pd_by_rating.csv`` if present and
-    maps them onto our rating keys; otherwise falls back to the literature defaults. The
-    speculative-grade aggregate of the Moody's whole-letter table is ~3.8%, matching the
-    ~3.8-4.2% calibration band in ``research/README.md`` section 3.
-    """
-    table = dict(_RATING_PD_DEFAULT)
-    source = "literature defaults (S&P/Moody's annual default studies, research/README.md s.3)"
-    if not _RATING_PD_CSV.exists():
-        return table, source
-    try:
-        rows: dict[str, float] = {}
-        text = _RATING_PD_CSV.read_text(encoding="utf-8").splitlines()
-        for line in text[1:]:
-            if not line.strip():
-                continue
-            # Split into rating, PD, and the (quoted, comma-bearing) source field.
-            parts = line.split(",", 2)
-            if len(parts) < 3:
-                continue
-            rating, pd_str, src = parts[0].strip(), parts[1], parts[2]
-            # Use only the whole-letter table (Exhibit 17) so all PDs are on one consistent
-            # scale; the alphanumeric table (Exhibit 19) lacks whole-letter Ba/B rows.
-            if "Exhibit 17" not in src:
-                continue
-            if rating in _MOODYS_TO_RATING and _MOODYS_TO_RATING[rating] not in rows:
-                rows[_MOODYS_TO_RATING[rating]] = float(pd_str)
-        if rows:
-            # Floor near-zero high-grade PDs so logit fields stay finite downstream.
-            table.update({k: max(v, 1e-5) for k, v in rows.items()})
-            source = "Moody's Corporate Default & Recovery Rates 1920-2004, Exhibit 17 (whole-letter, Year-1)"
-    except (OSError, ValueError):
-        # Any parse problem -> silent fall back to defaults (soft dependency).
-        return dict(_RATING_PD_DEFAULT), source
-    return table, source
-
-
-_RATING_PD, _RATING_PD_SOURCE = _load_rating_pd()
+_RATING_PD, _RATING_PD_SOURCE = load_rating_pd()
 
 # Type weights used to build the institution mix programmatically for any n.
 # Banks dominate, then funds/corporates, with a thin sovereign/CCP backbone.

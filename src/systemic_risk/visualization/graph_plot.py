@@ -58,8 +58,8 @@ def plot_community_network(
     story obvious. Falls back to type-colouring if no clusters are attached.
 
     ``max_edges`` keeps only that many heaviest exposures for drawing (dense max-entropy
-    reconstructions are near-complete graphs and would otherwise render as a hairball); the
-    layout still uses the full weighted graph. Set to ``None`` to draw every edge.
+    reconstructions are near-complete graphs and would otherwise render as a hairball). Set to
+    ``None`` to draw every edge.
     """
     if spec.clusters is None:
         return plot_financial_network(spec, path=path, seed=seed)
@@ -69,9 +69,9 @@ def plot_community_network(
     color_of = {lab: _COMMUNITY_PALETTE[i % len(_COMMUNITY_PALETTE)]
                 for i, lab in enumerate(labels_sorted)}
 
-    # Community-aware layout: well-separated community centres on a circle, members ringed
-    # around their own centre. Deterministic (no spring relaxation that would collapse the
-    # heavy central hub of a dense max-entropy graph back into a single blob).
+    # Community-aware layout computed directly from spec.clusters (not a spring relaxation):
+    # well-separated community centres on a circle, members ringed around their own centre.
+    # Deterministic, so a dense max-entropy graph's heavy central hub never collapses to a blob.
     n_comm = len(labels_sorted)
     centre_angles = np.linspace(0, 2 * np.pi, n_comm, endpoint=False)
     centres = {

@@ -112,6 +112,37 @@ def homogeneous_credit_spec(
     )
 
 
+def qae_tail_risk_spec(n: int = 12) -> SystemSpec:
+    """Return a small spec whose cascade size is *graded*, for the QAE calculation-surface demo.
+
+    The QAE tail-risk estimator forms the ``2^n`` statevector, so it is an exact-simulation
+    demonstration sized to a single small loader block (here ``n=12`` -> ``4096`` amplitudes). A
+    directed near-ring of moderate interbank exposures against unit capital makes the final
+    cascade size genuinely graded: a lone default rarely propagates, a correlated cluster
+    sometimes triggers a system-wide collapse, so ``P(cascade size >= s)`` sweeps from order
+    ``10^-1`` down into the deep tail across thresholds -- exactly the regime where the QAE query
+    advantage over Monte Carlo is meant to widen. The marginals are uniform and the dependency
+    equicorrelated, so the entangled Born machine loads it as one exact symmetric block (the same
+    construction that scales to 54 qubits; only the *simulation* of QAE on top is exponential).
+    """
+    corr = np.full((n, n), 0.15)
+    np.fill_diagonal(corr, 1.0)
+    exposure = np.zeros((n, n))
+    for i in range(n):
+        exposure[(i + 1) % n, i] = 0.6
+        exposure[(i + 2) % n, i] = 0.5
+    return SystemSpec(
+        node_names=[f"Q{i:02d}" for i in range(n)],
+        node_types=["bank"] * n,
+        exposure_matrix=exposure,
+        capital_buffers=np.ones(n),
+        marginal_default_probs=np.full(n, 0.06),
+        target_pairwise_corr=corr,
+        clusters=["c0"] * n,
+        metadata={"kind": "qae-tail-risk-demo", "marginal": 0.06, "default_corr": 0.15},
+    )
+
+
 def homogeneous_oracle_spec(
     n: int = 54, marginal: float = 0.02, default_corr: float = 0.25
 ) -> SystemSpec:

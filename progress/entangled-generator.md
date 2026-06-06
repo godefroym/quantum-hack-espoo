@@ -3,7 +3,8 @@
 **Date:** 2026-06-06
 **Branch:** `alex/entanglement-generator`
 **Scope:** The project's core IP — the entangled, quantum-native scenario generator — built on
-top of the classical data foundation (see `data-foundation.md`).
+top of the classical data foundation (the real 28-bank network in `src/systemic_risk/data_network/`;
+data provenance in `data/external/CATALOG.md`).
 **Status of this document:** rewritten as a single coherent log after an independent, adversarial
 audit that reproduced every headline number and ran a confound-free re-test of the central claim.
 The audit's job was to *break* the prior agent's "all three criteria PASS" self-report; what
@@ -259,8 +260,8 @@ uv sync                                       # core + dev deps
 uv run python scripts/run_demonstration.py    # headline per-criterion verdict + artifacts (~15s)
 uv run python scripts/run_scaling_experiment.py  # size scaling + n=54 oracle table (TV ≈ 0)
 uv run python scripts/_audit_matched_foil.py  # the confound-free criterion-3 re-test
-uv run pytest -q                              # 63 passed
-uv run --extra quantum pytest -q              # 63 passed (Qiskit backend)
+uv run pytest -q                              # full suite
+uv run --extra quantum pytest -q              # full suite on the Qiskit backend
 ```
 
 Artifacts land in `outputs/` (`demonstration_comparison.csv` — note the `corr_mean_gen` column,

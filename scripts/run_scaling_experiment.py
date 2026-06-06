@@ -1,4 +1,4 @@
-"""Scaling experiment — how the entangled generator behaves as the system grows.
+"""SECONDARY (scale study) — how the entangled generator behaves as the system grows.
 
 Two complementary scaling stories, written to ``outputs/``:
 

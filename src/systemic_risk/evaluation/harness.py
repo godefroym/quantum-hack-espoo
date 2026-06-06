@@ -5,9 +5,10 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
+from systemic_risk.evaluation.channels import ContagionChannel, as_channel
 from systemic_risk.evaluation.metrics import compute_metrics
 from systemic_risk.generators.base import ScenarioGenerator
-from systemic_risk.simulator.cascade import CascadeResult, simulate_many
+from systemic_risk.simulator.cascade import CascadeOutcome
 from systemic_risk.spec import SystemSpec
 
 
@@ -15,16 +16,21 @@ from systemic_risk.spec import SystemSpec
 class GeneratorRunResult:
     generator_name: str
     samples: np.ndarray
-    cascade_results: list[CascadeResult]
+    cascade_results: list[CascadeOutcome]
     metrics: dict[str, float]
 
 
 class EvaluationHarness:
-    """Fit generators, sample scenarios, run the shared cascade engine, and compare."""
+    """Fit generators, sample scenarios, run a contagion channel, and compare.
+
+    ``spec`` is either a :class:`SystemSpec` (evaluated through the default
+    exposure cascade) or a :class:`ContagionChannel` (e.g. the Huang fire-sale),
+    so the same evaluation spine drives either contagion model.
+    """
 
     def __init__(
         self,
-        spec: SystemSpec,
+        spec: SystemSpec | ContagionChannel,
         n_samples: int = 2_000,
         severe_threshold: int | None = None,
         collapse_threshold: float = 0.5,
@@ -36,14 +42,21 @@ class EvaluationHarness:
     ) -> None:
         if n_samples <= 0:
             raise ValueError("n_samples must be positive")
-        self.spec = spec
+        self.channel = as_channel(
+            spec,
+            max_rounds=max_rounds,
+            collapse_threshold=collapse_threshold,
+            lgd=lgd,
+            fail_on_equal=fail_on_equal,
+        )
+        self.spec = self.channel.spec
         self.n_samples = n_samples
         self.severe_threshold = (
-            int(np.ceil(0.5 * spec.n))
+            int(np.ceil(0.5 * self.spec.n))
             if severe_threshold is None
             else int(severe_threshold)
         )
-        if not 0 <= self.severe_threshold <= spec.n:
+        if not 0 <= self.severe_threshold <= self.spec.n:
             raise ValueError("severe_threshold must lie between 0 and spec.n")
         self.collapse_threshold = collapse_threshold
         self.seed = seed
@@ -54,22 +67,14 @@ class EvaluationHarness:
 
     def run(self, generators: list[ScenarioGenerator]) -> list[GeneratorRunResult]:
         results: list[GeneratorRunResult] = []
-        seed_sequence = np.random.SeedSequence(self.seed)
-        child_seeds = seed_sequence.spawn(len(generators))
+        child_seeds = np.random.SeedSequence(self.seed).spawn(len(generators))
         for generator, child_seed in zip(generators, child_seeds):
             generator.fit(self.spec)
             if hasattr(generator, "train"):
                 generator.train(seed=int(child_seed.generate_state(1)[0]))
             sample_seed = int(child_seed.generate_state(1)[0])
             samples = generator.sample(self.n_samples, seed=sample_seed)
-            cascades = simulate_many(
-                samples,
-                self.spec,
-                max_rounds=self.max_rounds,
-                collapse_threshold=self.collapse_threshold,
-                lgd=self.lgd,
-                fail_on_equal=self.fail_on_equal,
-            )
+            cascades = self.channel.simulate(samples)
             metrics = compute_metrics(
                 samples,
                 cascades,

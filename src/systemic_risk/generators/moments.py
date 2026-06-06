@@ -9,8 +9,7 @@ from systemic_risk.spec import (
     SystemSpec,
     joint_to_corr,
 )
-from systemic_risk.utils.validation import ensure_binary_samples
-from systemic_risk.utils.validation import nearest_psd_correlation
+from systemic_risk.utils.validation import ensure_binary_samples, nearest_psd_correlation
 
 
 @dataclass(frozen=True)

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from systemic_risk.spec import SystemSpec
+from systemic_risk.spec import SystemSpec, joint_to_corr
 from systemic_risk.utils.validation import ensure_binary_samples
 
 
@@ -40,17 +40,7 @@ def sample_diagnostics(samples: np.ndarray) -> GeneratorDiagnostics:
     n_samples, n = samples.shape
     marginals = samples.mean(axis=0)
     pairwise_joint = (samples.T @ samples) / max(n_samples, 1)
-    pairwise_corr = np.eye(n)
-    for i in range(n):
-        for j in range(i + 1, n):
-            denom = np.sqrt(
-                marginals[i]
-                * (1 - marginals[i])
-                * marginals[j]
-                * (1 - marginals[j])
-            )
-            corr = 0.0 if denom == 0 else (pairwise_joint[i, j] - marginals[i] * marginals[j]) / denom
-            pairwise_corr[i, j] = pairwise_corr[j, i] = float(np.clip(corr, -1.0, 1.0))
+    pairwise_corr = joint_to_corr(pairwise_joint, marginals)
     unique = np.unique(samples, axis=0).shape[0]
     return GeneratorDiagnostics(
         sampled_marginals=marginals,

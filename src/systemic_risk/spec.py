@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-from scipy.stats import multivariate_normal, norm
+from scipy.stats import norm
 
 from systemic_risk.utils.validation import nearest_psd_correlation
 
@@ -202,17 +202,12 @@ def corr_to_joint(corr: np.ndarray, p: np.ndarray) -> np.ndarray:
     """Convert Bernoulli correlations to feasible co-default probabilities."""
     corr = np.asarray(corr, dtype=float)
     p = np.asarray(p, dtype=float)
-    joint = np.outer(p, p)
-    for i in range(len(p)):
-        for j in range(len(p)):
-            if i == j:
-                joint[i, j] = p[i]
-                continue
-            scale = np.sqrt(p[i] * (1 - p[i]) * p[j] * (1 - p[j]))
-            candidate = p[i] * p[j] + corr[i, j] * scale
-            lower = max(0.0, p[i] + p[j] - 1.0)
-            upper = min(p[i], p[j])
-            joint[i, j] = float(np.clip(candidate, lower, upper))
+    scale = np.sqrt(np.outer(p * (1 - p), p * (1 - p)))
+    candidate = np.outer(p, p) + corr * scale
+    lower = np.maximum(0.0, p[:, None] + p[None, :] - 1.0)  # Frechet bounds
+    upper = np.minimum(p[:, None], p[None, :])
+    joint = np.clip(candidate, lower, upper)
+    np.fill_diagonal(joint, p)
     return joint
 
 
@@ -221,41 +216,48 @@ def latent_corr_to_joint(corr: np.ndarray, p: np.ndarray) -> np.ndarray:
     p = np.asarray(p, dtype=float)
     corr = nearest_psd_correlation(np.asarray(corr, dtype=float))
     thresholds = norm.ppf(np.clip(p, 1e-12, 1.0 - 1e-12))
-    joint = np.outer(p, p)
+    rho = np.clip(corr, -0.999, 0.999)
+    joint = _bivariate_normal_cdf(
+        thresholds[:, None], thresholds[None, :], rho
+    )
+    # Degenerate marginals: collapse to the deterministic Frechet value.
+    zero = (p <= 0.0)[:, None] | (p <= 0.0)[None, :]
+    joint = np.where(zero, 0.0, joint)
+    one_i = (p >= 1.0)[:, None] & np.ones_like(joint, dtype=bool)
+    joint = np.where(one_i, np.broadcast_to(p[None, :], joint.shape), joint)
+    one_j = np.ones_like(joint, dtype=bool) & (p >= 1.0)[None, :]
+    joint = np.where(one_j, np.broadcast_to(p[:, None], joint.shape), joint)
+    joint = (joint + joint.T) / 2.0
     np.fill_diagonal(joint, p)
-    for i in range(len(p)):
-        for j in range(i + 1, len(p)):
-            if p[i] <= 0.0 or p[j] <= 0.0:
-                value = 0.0
-            elif p[i] >= 1.0:
-                value = p[j]
-            elif p[j] >= 1.0:
-                value = p[i]
-            else:
-                rho = float(np.clip(corr[i, j], -0.999, 0.999))
-                value = float(
-                    multivariate_normal.cdf(
-                        [thresholds[i], thresholds[j]],
-                        mean=[0.0, 0.0],
-                        cov=[[1.0, rho], [rho, 1.0]],
-                        maxpts=20_000,
-                        abseps=1e-9,
-                        releps=1e-9,
-                        rng=np.random.default_rng(0),
-                    )
-                )
-            joint[i, j] = joint[j, i] = value
     return joint
 
 
 def joint_to_corr(joint: np.ndarray, p: np.ndarray) -> np.ndarray:
     joint = np.asarray(joint, dtype=float)
     p = np.asarray(p, dtype=float)
-    corr = np.eye(len(p))
-    for i in range(len(p)):
-        for j in range(len(p)):
-            if i == j:
-                continue
-            denom = np.sqrt(p[i] * (1 - p[i]) * p[j] * (1 - p[j]))
-            corr[i, j] = 0.0 if denom == 0 else (joint[i, j] - p[i] * p[j]) / denom
-    return np.clip(corr, -1.0, 1.0)
+    denom = np.sqrt(np.outer(p * (1 - p), p * (1 - p)))
+    corr = np.divide(
+        joint - np.outer(p, p), denom, out=np.zeros_like(joint), where=denom > 0
+    )
+    corr = np.clip(corr, -1.0, 1.0)
+    np.fill_diagonal(corr, 1.0)
+    return corr
+
+
+def _bivariate_normal_cdf(h: np.ndarray, k: np.ndarray, r: np.ndarray, n_nodes: int = 60) -> np.ndarray:
+    """Vectorized standard bivariate normal CDF ``P(X<=h, Y<=k)`` with correlation ``r``.
+
+    Gauss-Legendre quadrature of the Drezner-Wesolowsky identity
+    ``Phi2(h,k;r) = Phi(h) Phi(k) + integral_0^r phi2(h,k;t) dt``; matches
+    ``scipy.stats.multivariate_normal.cdf`` to machine precision.
+    """
+    h, k, r = np.broadcast_arrays(h, k, np.asarray(r, dtype=float))
+    nodes, weights = np.polynomial.legendre.leggauss(n_nodes)
+    t = r[..., None] * (nodes + 1.0) / 2.0
+    one_minus_t2 = 1.0 - t**2
+    density = np.exp(
+        -(h[..., None] ** 2 + k[..., None] ** 2 - 2.0 * t * h[..., None] * k[..., None])
+        / (2.0 * one_minus_t2)
+    ) / (2.0 * np.pi * np.sqrt(one_minus_t2))
+    integral = np.sum(weights * density * (r[..., None] / 2.0), axis=-1)
+    return norm.cdf(h) * norm.cdf(k) + integral

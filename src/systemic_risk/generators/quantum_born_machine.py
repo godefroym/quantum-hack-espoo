@@ -22,13 +22,14 @@ Two ansatz families share one calibration + interface (set ``ansatz=``):
 
 ``"ghz_systemic"``
     A GHZ-style superposition of a benign and a systemic product state. The coherent
-    "everyone defaults together" component IS the systemic mode, so lower-tail / joint
-    dependence is built in by construction; the number-of-defaults law is closed form at any
-    ``n`` (no ``2^n`` sum), which is what makes it exact at 54 qubits and the cleanest
-    "entanglement carries tail dependence" demonstration.
+    "everyone defaults together" component is an explicit common-shock mode, placing
+    all-default mass far above the independence baseline; the number-of-defaults law is closed
+    form at any ``n`` (no ``2^n`` sum), exact at 54 qubits. Its higher-order structure is set
+    by the benign/systemic split rather than the spec, so the robust beyond-second-order claim
+    is carried by the homogeneous ``"entangled"`` path's symmetric loader, not this one.
 
-The misleading ``RZZ`` story of the previous placeholder is corrected: a ``Z``-diagonal gate is
-inert in the measured (``Z``) basis, so the correlations here are produced by amplitude mixing.
+Correlations come from amplitude mixing, never phase: a ``Z``-diagonal gate (e.g. ``RZZ``) is
+inert in the measured (``Z``) basis. See :mod:`.quantum.ansatz` for the angle derivations.
 """
 
 from __future__ import annotations
@@ -438,11 +439,10 @@ def _statevector_block_moments(
 
 
 class EntangledPQCGenerator(EntangledBornMachineGenerator):
-    """Backwards-compatible alias replacing the old Gibbs-sampler placeholder.
+    """Backwards-compatible alias for :class:`EntangledBornMachineGenerator`.
 
-    Accepts (and ignores) the placeholder's former ``layers`` / ``gibbs_sweeps`` /
-    ``burn_in`` / ``coupling_scale`` keywords so existing callers keep working; the real
-    sampler is the entangled Born machine above.
+    Accepts and ignores the ``layers`` / ``gibbs_sweeps`` / ``burn_in`` / ``coupling_scale``
+    keywords so callers written against the older constructor keep working.
     """
 
     name = "Entangled PQC"

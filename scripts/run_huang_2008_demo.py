@@ -1,3 +1,15 @@
+"""SECONDARY entry point — single Huang fire-sale cascade on a 2008-style bank-asset network.
+
+A minimal illustration of the optional overlapping-portfolio / price-impact contagion channel
+(see ``docs/huang_simulation.md``): shock three real-estate asset classes and trace the resulting
+bank-failure rounds and asset write-downs. For the generator comparison under this channel use
+``scripts/compare_generators_huang.py``; for the canonical end-to-end run use
+``scripts/run_demonstration.py``.
+
+Run:
+    uv run python scripts/run_huang_2008_demo.py
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
