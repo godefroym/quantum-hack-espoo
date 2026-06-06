@@ -5,7 +5,7 @@ Quantum-native systemic stress testing. An entangled Born-machine generator prop
 - **Generation** — an entangled QCBM samples the correlated default distribution and serves as the QAE state-loader (one qubit per institution; angles set analytically from marginals and the exposure graph).
 - **Calculation** — the cascade becomes a reversible oracle; QAE estimates tail risk (`P(severe)`, CVaR) with a quadratic, deep-tail-amplified speedup; amplitude amplification finds the worst plausible scenario.
 
-**Direction:** the classical baselines, the entangled QCBM generator, both contagion channels (exposure cascade + Huang fire-sale, unified behind one harness), and the comparison harness are implemented and validated end-to-end — n=54 generation reproduces the exact mean-field oracle loss distribution. The remaining quantum layer is the QAE cascade oracle (the QCBM state-loader half already exists). Hardware access to a **54-qubit machine is incoming**.
+**Direction:** the classical baselines, the entangled QCBM generator, both contagion channels (exposure cascade + Huang fire-sale, unified behind one harness), and the comparison harness are implemented and validated end-to-end — n=54 generation reproduces the exact mean-field oracle loss distribution. Both quantum surfaces now exist: **generation** (the QCBM loader) and **calculation** (QAE of `P(severe)`/CVaR over the QCBM-loaded cascade oracle, in `evaluation/qae_tail_risk.py` — an exact statevector simulation whose estimate matches Monte Carlo and whose oracle-query count beats it quadratically in the deep tail; no wall-clock speedup claimed). What remains is running the calculation on the **54-qubit machine (access incoming)**.
 
 ## Run
 
@@ -26,4 +26,4 @@ uv sync --all-extras
 
 ## Layout
 
-`src/systemic_risk/`: `spec.py` (SystemSpec), `data/` (synthetic network + Huang adapter), `data_network/` (Part A: real 28-bank network), `generators/` (Bernoulli, copula, Ising, entangled Born machine), `simulator/` (exposure cascade + Huang fire-sale, sharing one `CascadeOutcome` contract), `evaluation/` (metrics + harness; one harness drives either contagion channel), `visualization/`. Entry points in `scripts/` (`run_demonstration.py` canonical, `run_mvp.py` smoke test, rest specialized — see README table); tests in `tests/`.
+`src/systemic_risk/`: `spec.py` (SystemSpec), `data/` (synthetic network + Huang adapter), `data_network/` (Part A: real 28-bank network), `generators/` (Bernoulli, copula, Ising, entangled Born machine), `simulator/` (exposure cascade + Huang fire-sale, sharing one `CascadeOutcome` contract), `evaluation/` (metrics + harness driving either contagion channel; QAE tail-risk estimator), `visualization/`. Entry points in `scripts/` (`run_demonstration.py` canonical, `run_mvp.py` smoke test, rest specialized — see README table); tests in `tests/`.

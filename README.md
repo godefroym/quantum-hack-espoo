@@ -34,7 +34,7 @@ A = U_QCBM (load P(x)) -> U_severity (cascade oracle) -> mark severe
   => AA  : discover the worst plausible scenario
 ```
 
-**Implemented vs. designed.** The classical baselines, the cascade simulator, the entangled Born-machine generator, and the comparison harness are implemented today. The QAE cascade oracle is the quantum layer this MVP is structured around (the Born-machine state-loader half exists).
+**Implemented vs. designed.** The classical baselines, the cascade simulator, the entangled Born-machine generator, and the comparison harness are implemented today — and so is the QAE *calculation* surface, as an **exact classical statevector simulation**: amplitude estimation reads `P(severe)` / CVaR off the QCBM-loaded cascade oracle (`uv run python scripts/run_qae_tail_risk.py`). It is verified to agree with the classical Monte-Carlo answer (equivalence) and to reach a target accuracy in quadratically fewer *oracle queries* in the deep tail (advantage). What remains is running it on hardware — the simulation is exponential in `n`, but the construction (one qubit per institution + cascade-comparison ancillas, the QCBM as loader) is hardware-ready. No wall-clock speedup is claimed; the advantage is in oracle-query count.
 
 ## What This Does Not Claim
 
@@ -60,6 +60,7 @@ uv run pytest                                # tests
 | `run_mvp.py` | **Smoke test** — fast cascade comparison on the real network; feeds the dashboard |
 | `build_system_spec.py` | Part A — build + validate + render the real exposure network |
 | `run_scaling_experiment.py` | Size/scale study + the n=54 mean-field oracle table |
+| `run_qae_tail_risk.py` | Calculation surface — QAE of `P(severe)`/CVaR vs Monte Carlo (equivalence + oracle-query advantage) |
 | `run_huang_2008_demo.py`, `compare_generators_huang.py` | Optional fire-sale contagion channel (see below) |
 
 All entry points write to `outputs/` (e.g. `run_mvp.py` → `network.png`, `comparison.csv`, `real_system.json`, one crisis card per generator).
