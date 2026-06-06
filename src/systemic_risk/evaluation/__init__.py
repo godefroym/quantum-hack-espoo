@@ -28,6 +28,11 @@ from systemic_risk.evaluation.metrics import (
     result_summary,
     tail_failure_probability,
 )
+from systemic_risk.evaluation.qae_tail_risk import (
+    QAETailRiskEstimator,
+    QAETailRiskReport,
+    TailRiskEstimate,
+)
 
 __all__ = [
     "ContagionChannel",
@@ -36,7 +41,10 @@ __all__ = [
     "GeneratorRunResult",
     "HigherOrderStructure",
     "HuangFireSaleChannel",
+    "QAETailRiskEstimator",
+    "QAETailRiskReport",
     "TailDependence",
+    "TailRiskEstimate",
     "aggregate_results",
     "as_channel",
     "aggregate_tail_dependence",
