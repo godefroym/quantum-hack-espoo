@@ -5,6 +5,7 @@ import pytest
 
 from systemic_risk.generators.quantum.ibm_runtime import _bitstrings_to_samples
 from systemic_risk.generators.quantum.qiskit_backend import build_circuit
+from systemic_risk.spec import SystemSpec
 
 
 def test_ibm_bitstrings_are_returned_in_institution_column_order() -> None:
@@ -36,7 +37,6 @@ def test_ibm_runtime_executes_against_small_fake_backend() -> None:
     pytest.importorskip("qiskit_ibm_runtime")
     from qiskit_ibm_runtime.fake_provider import FakeOslo
 
-    from scripts.run_ibm_quantum_test import hardware_test_spec
     from systemic_risk.generators import EntangledBornMachineGenerator
     from systemic_risk.generators.quantum.ibm_runtime import run_block
 
@@ -44,8 +44,19 @@ def test_ibm_runtime_executes_against_small_fake_backend() -> None:
         def least_busy(self, **kwargs):
             return FakeOslo()
 
+    corr = np.full((4, 4), 0.1)
+    np.fill_diagonal(corr, 1.0)
+    spec = SystemSpec(
+        node_names=["A", "B", "C", "D"],
+        node_types=["bank"] * 4,
+        exposure_matrix=np.zeros((4, 4)),
+        capital_buffers=np.ones(4),
+        marginal_default_probs=np.array([0.08, 0.12, 0.16, 0.20]),
+        target_pairwise_corr=corr,
+        clusters=["test"] * 4,
+    )
     generator = EntangledBornMachineGenerator()
-    generator.fit(hardware_test_spec())
+    generator.fit(spec)
     result = run_block(generator.blocks_[0], shots=32, service=FakeService())
 
     assert result.backend_name == "fake_oslo"
