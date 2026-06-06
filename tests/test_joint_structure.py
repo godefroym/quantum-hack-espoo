@@ -1,27 +1,10 @@
 """Discrimination tests for higher-order joint-structure and tail-dependence statistics.
 
-Each statistic is validated against sample matrices with KNOWN structure, constructed here so
-the tests are self-contained. Four reference joints are used:
-
-* **independent Bernoulli** -- second order is trivial, so higher-order and tail-dependence
-  statistics must sit at their zero baselines;
-* **Gaussian copula** (threshold an equicorrelated normal) -- a genuinely second-order /
-  elliptical model: it carries substantial pairwise correlation yet, being elliptical, has a
-  third-order structure *pinned* by its marginals and correlation and provably zero lower-tail
-  dependence at any correlation ``< 1``;
-* **GHZ-like common-shock mixture** -- a rare "everyone defaults at once" event mixed with an
-  independent idiosyncratic background. This is the crucial foil: it can be tuned to the *same*
-  marginals and the *same* pairwise correlation as a Gaussian copula while remaining
-  non-elliptical, so its connected third cumulant and joint-tail co-default exceed anything a
-  correlation-matched Gaussian copula (or any second-order model) can reproduce;
-* **comonotone** -- the rank-1 "all-default-together" limit, used for tail dependence (where it
-  is maximal). It is deliberately *not* used as the excess-coskewness foil: comonotonicity is
-  the degenerate correlation-one limit of the Gaussian copula itself, so a Gaussian copula does
-  reproduce its co-skewness -- which is exactly why the GHZ mixture, not comonotonicity, is the
-  referee-proof beyond-second-order test.
-
-The assertions check separation (zero/near-baseline for the second-order and independent cases,
-large for the genuinely higher-order case), not merely that the functions run.
+Statistics are validated against four self-contained reference joints with known structure:
+independent Bernoulli (zero baseline), Gaussian copula (second-order/elliptical: real
+correlation but pinned co-skewness and zero lower-tail dependence), a GHZ-like common-shock
+mixture (the beyond-second-order foil: matchable to a Gaussian copula's marginals and
+correlation yet non-elliptical), and comonotone (the all-together tail-dependence limit).
 """
 
 from __future__ import annotations
@@ -203,6 +186,16 @@ def test_gaussian_copula_reference_matches_its_own_sample_coskewness() -> None:
     # The closed-form Gaussian-copula reference reproduces the sampled co-skewness within
     # Monte-Carlo error, confirming it is the correct second-order baseline to subtract.
     assert np.max(np.abs(sampled - reference)) < 0.05
+
+
+def test_gaussian_copula_reference_is_reproducible() -> None:
+    rng = np.random.default_rng(13)
+    samples = _gaussian_copula(rng, rho=0.5)
+    structure_a = higher_order_structure(samples)
+    structure_b = higher_order_structure(samples)
+
+    # The seeded orthant CDF makes the coskewness reference deterministic run to run.
+    assert structure_a == structure_b
 
 
 # ----------------------------------------------------------------- tail dependence

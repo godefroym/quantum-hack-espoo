@@ -1,6 +1,7 @@
 """Classical contagion simulator."""
 
 from systemic_risk.simulator.cascade import (
+    CascadeOutcome,
     CascadeResult,
     CascadeScenario,
     run_cascade,
@@ -17,6 +18,7 @@ from systemic_risk.simulator.huang import (
 )
 
 __all__ = [
+    "CascadeOutcome",
     "CascadeResult",
     "CascadeScenario",
     "HuangCascadeResult",

@@ -1,5 +1,11 @@
 """Evaluation metrics and comparison harness."""
 
+from systemic_risk.evaluation.channels import (
+    ContagionChannel,
+    ExposureCascadeChannel,
+    HuangFireSaleChannel,
+    as_channel,
+)
 from systemic_risk.evaluation.harness import EvaluationHarness, GeneratorRunResult
 from systemic_risk.evaluation.joint_structure import (
     HigherOrderStructure,
@@ -24,11 +30,15 @@ from systemic_risk.evaluation.metrics import (
 )
 
 __all__ = [
+    "ContagionChannel",
     "EvaluationHarness",
+    "ExposureCascadeChannel",
     "GeneratorRunResult",
     "HigherOrderStructure",
+    "HuangFireSaleChannel",
     "TailDependence",
     "aggregate_results",
+    "as_channel",
     "aggregate_tail_dependence",
     "batch_summary",
     "cascade_count_cvar",

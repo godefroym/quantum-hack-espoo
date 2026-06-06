@@ -6,10 +6,16 @@ from typing import Mapping
 import numpy as np
 
 from systemic_risk.bank_asset_spec import BankAssetSystemSpec
+from systemic_risk.simulator.cascade import (
+    is_systemic_collapse,
+    validate_contagion_limits,
+)
 
 
 @dataclass
 class HuangCascadeResult:
+    """Bank-asset fire-sale outcome, conforming to ``CascadeOutcome``."""
+
     initial_bank_defaults: np.ndarray
     final_bank_defaults: np.ndarray
     initial_asset_price_factors: np.ndarray
@@ -23,6 +29,37 @@ class HuangCascadeResult:
     rounds_to_convergence: int
     failure_count: int
     systemic_collapse: bool
+    node_names: tuple[str, ...] = ()
+    converged: bool = True
+    scenario_id: str = ""
+
+    @property
+    def final_defaults(self) -> np.ndarray:
+        """Shared-protocol alias for the post-cascade failed-bank vector."""
+        return self.final_bank_defaults
+
+    @property
+    def initial_defaults(self) -> np.ndarray:
+        return self.initial_bank_defaults
+
+    @property
+    def node_count(self) -> int:
+        return len(self.final_bank_defaults)
+
+    @property
+    def failure_fraction(self) -> float:
+        return self.failure_count / self.node_count if self.node_count else 0.0
+
+    @property
+    def cascade_depth(self) -> int:
+        return self.rounds_to_convergence
+
+    @property
+    def failed_nodes(self) -> list[str]:
+        names = self.node_names or tuple(
+            str(i) for i in range(self.node_count)
+        )
+        return [name for name, failed in zip(names, self.final_bank_defaults) if failed]
 
 
 def huang_failure_probability(
@@ -71,10 +108,7 @@ def run_huang_cascade(
     bank liquidates its original holdings and causes an alpha-scaled deduction
     from the corresponding asset class's total market value.
     """
-    if max_rounds <= 0:
-        raise ValueError("max_rounds must be positive")
-    if not 0 < collapse_threshold <= 1:
-        raise ValueError("collapse_threshold must lie in (0, 1]")
+    validate_contagion_limits(max_rounds, collapse_threshold)
     if not 0 <= eta <= 0.5:
         raise ValueError("eta must lie in [0, 0.5]")
 
@@ -96,6 +130,7 @@ def run_huang_cascade(
     price_factors_by_round: list[np.ndarray] = []
     bank_asset_values_by_round: list[np.ndarray] = []
     failure_probabilities_by_round: list[np.ndarray] = []
+    converged = False
 
     for _ in range(max_rounds):
         current_values = spec.holdings @ price_factors
@@ -112,6 +147,7 @@ def run_huang_cascade(
         failure_probabilities_by_round.append(probabilities)
 
         if not np.any(new_failures):
+            converged = True
             break
 
         failed |= new_failures
@@ -138,8 +174,11 @@ def run_huang_cascade(
         failure_probabilities_by_round=failure_probabilities_by_round,
         rounds_to_convergence=len(new_failures_by_round),
         failure_count=failure_count,
-        systemic_collapse=failure_count
-        >= int(np.ceil(collapse_threshold * spec.n_banks)),
+        systemic_collapse=is_systemic_collapse(
+            failure_count, spec.n_banks, collapse_threshold
+        ),
+        node_names=tuple(spec.bank_names),
+        converged=converged,
     )
 
 
@@ -162,8 +201,9 @@ def simulate_huang_scenarios(
         raise ValueError("scenarios must contain only 0/1 values")
 
     child_seeds = np.random.SeedSequence(seed).spawn(len(samples))
-    return [
-        run_huang_cascade(
+    results = []
+    for index, (scenario, child_seed) in enumerate(zip(samples, child_seeds)):
+        result = run_huang_cascade(
             spec,
             asset_price_shocks=asset_price_shocks,
             initial_bank_defaults=scenario,
@@ -173,8 +213,9 @@ def simulate_huang_scenarios(
             max_rounds=max_rounds,
             collapse_threshold=collapse_threshold,
         )
-        for scenario, child_seed in zip(samples, child_seeds)
-    ]
+        result.scenario_id = str(index)
+        results.append(result)
+    return results
 
 
 def _resolve_asset_price_shocks(
