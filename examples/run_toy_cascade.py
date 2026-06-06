@@ -1,4 +1,8 @@
+import sys
+from pathlib import Path
 from pprint import pprint
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from contagion.metrics import failure_round_distribution, result_summary
 from contagion.simulator import run_cascade
