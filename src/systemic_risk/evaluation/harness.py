@@ -32,6 +32,7 @@ class EvaluationHarness:
         max_rounds: int | None = None,
         lgd: float | np.ndarray = 1.0,
         fail_on_equal: bool = False,
+        include_joint_structure: bool = True,
     ) -> None:
         if n_samples <= 0:
             raise ValueError("n_samples must be positive")
@@ -49,6 +50,7 @@ class EvaluationHarness:
         self.max_rounds = max_rounds
         self.lgd = lgd
         self.fail_on_equal = fail_on_equal
+        self.include_joint_structure = include_joint_structure
 
     def run(self, generators: list[ScenarioGenerator]) -> list[GeneratorRunResult]:
         results: list[GeneratorRunResult] = []
@@ -73,6 +75,7 @@ class EvaluationHarness:
                 cascades,
                 self.spec,
                 severe_threshold=self.severe_threshold,
+                include_joint_structure=self.include_joint_structure,
             )
             results.append(
                 GeneratorRunResult(

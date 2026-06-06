@@ -51,7 +51,12 @@ def sampling_scaling() -> pd.DataFrame:
     rows = []
     for n in SIZES:
         spec = synthetic_scale_spec(n=n).spec
-        harness = EvaluationHarness(spec, n_samples=4_000, seed=900 + n)
+        harness = EvaluationHarness(
+            spec,
+            n_samples=4_000,
+            seed=900 + n,
+            include_joint_structure=False,
+        )
         frame = harness.to_frame(harness.run(_generators()))
         frame["n"] = n
         rows.append(frame)

@@ -261,6 +261,17 @@ class EntangledBornMachineGenerator(ScenarioGenerator):
     def exact_moments(self) -> tuple[np.ndarray, np.ndarray]:
         """Return exact ``(marginals, pairwise_joint)`` from the statevector (small ``n``)."""
         require_fitted(self.spec_, self.name)
+        if (
+            self.backend_used_ == "qiskit"
+            and self.ghz_ is None
+            and self.symmetric_ is None
+            and len(self.blocks_) == 1
+            and self.blocks_[0].size == self.spec_.n
+        ):
+            from systemic_risk.generators.quantum import qiskit_backend
+
+            block = self.blocks_[0]
+            return qiskit_backend.block_moments(block.ry, block.edges, block.cry)
         state = self._full_state()
         if state is None:
             raise RuntimeError("exact_moments requires a materialisable full-system state")
@@ -407,3 +418,8 @@ class EntangledPQCGenerator(EntangledBornMachineGenerator):
         **kwargs: object,
     ) -> None:
         super().__init__(**kwargs)  # type: ignore[arg-type]
+
+    @property
+    def backend_(self) -> str:
+        """Compatibility alias for callers written against the former placeholder."""
+        return self.backend_used_ or self.backend

@@ -36,6 +36,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from systemic_risk.data_network import build_synthetic_system_spec, build_system_spec
+from systemic_risk.generators.moments import targets_from_spec
 from systemic_risk.spec import SystemSpec
 
 
@@ -175,23 +176,21 @@ def frechet_corr_bounds(p: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 
 
 def achievable_corr(spec: SystemSpec) -> np.ndarray:
-    """Return the target correlation clipped into the per-pair Fréchet-achievable band.
+    """Return the binary-default target clipped into the Fréchet-achievable band.
 
-    This is the ceiling a binary generator can be fairly judged against on tiny-marginal credit
-    targets: where the nominal target is feasible it is unchanged; where it exceeds the bound it
-    is replaced by the closest attainable value.
+    ``target_pairwise_corr`` can be a latent Gaussian correlation. Comparisons between sampled
+    binary defaults must use the canonical binary correlation from ``targets_from_spec``, never
+    the raw latent matrix.
     """
-    if spec.target_pairwise_corr is None:
-        return np.eye(spec.n)
+    target = targets_from_spec(spec).pairwise_corr
     corr_min, corr_max = frechet_corr_bounds(spec.marginal_default_probs)
-    return np.clip(spec.target_pairwise_corr, corr_min, corr_max)
+    return np.clip(target, corr_min, corr_max)
 
 
 def infeasible_fraction(spec: SystemSpec, tol: float = 1e-9) -> float:
-    """Return the fraction of off-diagonal target correlations that exceed the Fréchet bound."""
-    if spec.target_pairwise_corr is None:
-        return 0.0
-    _, corr_max = frechet_corr_bounds(spec.marginal_default_probs)
+    """Return the fraction of binary-default targets outside their Fréchet bounds."""
+    target = targets_from_spec(spec).pairwise_corr
+    corr_min, corr_max = frechet_corr_bounds(spec.marginal_default_probs)
     iu = np.triu_indices(spec.n, k=1)
-    target = spec.target_pairwise_corr[iu]
-    return float(np.mean(target > corr_max[iu] + tol))
+    outside = (target[iu] < corr_min[iu] - tol) | (target[iu] > corr_max[iu] + tol)
+    return float(np.mean(outside))

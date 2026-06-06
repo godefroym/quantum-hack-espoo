@@ -255,7 +255,10 @@ class IsingModel:
             # Alternate even/odd neighbour pairs for ergodic exchange.
             start = rng.integers(0, 2)
             for r in range(start, n_replicas - 1, 2):
-                delta = (betas[r] - betas[r + 1]) * (log_w[r] - log_w[r + 1])
+                # Swap ratio:
+                # exp(beta_r f(x_{r+1}) + beta_{r+1} f(x_r)
+                #     - beta_r f(x_r) - beta_{r+1} f(x_{r+1})).
+                delta = (betas[r] - betas[r + 1]) * (log_w[r + 1] - log_w[r])
                 if delta >= 0 or rng.random() < np.exp(delta):
                     replicas[[r, r + 1]] = replicas[[r + 1, r]]
                     log_w[r], log_w[r + 1] = log_w[r + 1], log_w[r]

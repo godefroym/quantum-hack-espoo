@@ -23,7 +23,7 @@ from systemic_risk.data import (
     bank_asset_to_system_spec,
     make_huang_2008_style_system,
 )
-from systemic_risk.generators import EntangledPQCGenerator, GaussianCopulaGenerator
+from systemic_risk.generators import EntangledBornMachineGenerator, GaussianCopulaGenerator
 from systemic_risk.generators.moments import (
     empirical_moments,
     moment_errors,
@@ -70,19 +70,19 @@ def main() -> None:
     targets = targets_from_spec(generator_spec)
 
     gaussian = GaussianCopulaGenerator()
-    entangled = EntangledPQCGenerator(
-        layers=2,
-        coupling_scale=1.0,
-        gibbs_sweeps=18,
-        burn_in=50,
-    )
+    entangled = EntangledBornMachineGenerator(ansatz="entangled", backend="statevector")
     gaussian.fit(generator_spec)
     entangled.fit(generator_spec)
-    training_history = entangled.train(
-        n_steps=12,
-        n_samples=min(max(1_000, args.samples // 2), 3_000),
-        seed=args.seed + 10,
-    )
+    fit_diag = entangled.diagnostics_summary()
+    training_history = [
+        {
+            "backend": fit_diag.backend,
+            "n_qubits": fit_diag.n_qubits,
+            "n_edges": fit_diag.n_edges,
+            "n_blocks": fit_diag.n_blocks,
+            "max_block_size": fit_diag.max_block_size,
+        }
+    ]
 
     generators = [
         ("Gaussian copula (B)", gaussian),
@@ -116,7 +116,7 @@ def main() -> None:
         rows.append(
             {
                 "generator": label,
-                "backend": getattr(generator, "backend_", "classical"),
+                "backend": getattr(generator, "backend_used_", "classical"),
                 "n_samples": float(args.samples),
                 "marginal_rmse": errors.marginal_rmse,
                 "pairwise_joint_rmse": errors.pairwise_joint_rmse,
@@ -152,14 +152,14 @@ def main() -> None:
         failure_counts,
         args.banks,
         severe_threshold,
-        entangled.backend_,
+        entangled.backend_used_,
     )
 
     print(summary.to_string(index=False, float_format=lambda value: f"{value:.5f}"))
     print()
-    print(f"C backend: {entangled.backend_}")
-    if entangled.backend_ != "qiskit":
-        print("Important: C is currently a classical fallback, not a quantum result.")
+    print(f"C backend: {entangled.backend_used_}")
+    if entangled.backend_used_ != "ibm_runtime":
+        print("Important: C is an exact classical emulation of the circuit, not a hardware result.")
     print(f"Outputs: {args.output_dir}")
 
 

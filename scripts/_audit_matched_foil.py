@@ -1,11 +1,9 @@
 """Adversarial confound test for criteria 2 & 3.
 
-The headline demonstration compares the entangled generator against a Gaussian-copula foil that
-was calibrated to the *nominal* target correlation matrix. On the heterogeneous real community a
-third of those targets are Fréchet-infeasible, so the foil collapses to a much LOWER realized
-correlation (corr_mean ~0.15) than the entangled generator realizes (corr_mean ~0.43). Any
-cascade-tail gap could therefore be ordinary SECOND-order (the entangled generator is simply more
-correlated), not the higher-order structure the thesis claims.
+The headline demonstration feeds the same canonical spec to the entangled generator and Gaussian
+copula, but their realized binary correlations can still differ because the heterogeneous
+entangled ansatz only approximates the target. Any cascade-tail gap is therefore confounded until
+the realized first and second moments are explicitly matched.
 
 This script removes the confound. It:
   1. fits the entangled generator on the real community spec and draws a large reference sample;
@@ -32,13 +30,10 @@ bootstrap()
 
 import numpy as np  # noqa: E402
 
-from scipy.stats import norm  # noqa: E402
-
 from _demo._higher_order import _deep_tail_metrics  # noqa: E402
 from _demo._second_order import empirical_marginals_and_corr  # noqa: E402
 from _demo._specs import achievable_corr, real_community_spec  # noqa: E402
 from systemic_risk.evaluation import compute_metrics  # noqa: E402
-from systemic_risk.evaluation.joint_structure import _latent_correlation  # noqa: E402
 from systemic_risk.generators import (  # noqa: E402
     EntangledBornMachineGenerator,
     GaussianCopulaGenerator,
@@ -47,28 +42,6 @@ from systemic_risk.generators import (  # noqa: E402
 from systemic_risk.simulator.cascade import simulate_many  # noqa: E402
 from systemic_risk.spec import SystemSpec  # noqa: E402
 from systemic_risk.utils.validation import nearest_psd_correlation  # noqa: E402
-
-
-class LatentMatchedGaussianCopula(GaussianCopulaGenerator):
-    """Gaussian copula whose LATENT correlation is solved so the binary indicators realize C*.
-
-    The stock copula feeds the target Pearson correlation straight in as the latent correlation,
-    which badly undershoots at tiny marginals (thresholding shrinks correlation). Here we invert the
-    binary->latent map (the project's own ``_latent_correlation``, used by the higher-order
-    reference) so the SAMPLED Pearson correlation lands on C* -- a genuine 2nd-order match. The
-    copula structure (and thus its provably-zero tail dependence) is unchanged.
-    """
-
-    name = "Gaussian(latent-matched)"
-
-    def fit(self, spec: SystemSpec) -> None:
-        p = np.clip(spec.marginal_default_probs.copy(), 1e-12, 1.0 - 1e-12)
-        thresholds = norm.ppf(p)
-        latent = _latent_correlation(p, spec.target_pairwise_corr, thresholds)
-        self.p_ = p
-        self.corr_ = nearest_psd_correlation(latent)
-        np.fill_diagonal(self.corr_, 1.0)
-        self.thresholds_ = thresholds
 
 
 def tune_ising_to_corr(cal_spec: SystemSpec, target_corr_mean: float, seed: int,
@@ -188,7 +161,7 @@ def main() -> None:
     #    Gaussian: invert binary->latent so the SAMPLED Pearson corr lands on C* (not undershoot).
     #    Ising:    bisect the global coupling scale so its SAMPLED mean corr hits C*'s mean.
     cal_spec = matched_calibration_spec(cascade_spec, p_star, corr_star)
-    gauss = LatentMatchedGaussianCopula()
+    gauss = GaussianCopulaGenerator()
     gauss.fit(cal_spec)
     print("\nTuning Ising coupling scale to the entangled generator's realized correlation...")
     ising = tune_ising_to_corr(cal_spec, float(corr_star[iu].mean()),

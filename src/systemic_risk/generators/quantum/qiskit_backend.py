@@ -15,7 +15,14 @@ from __future__ import annotations
 import numpy as np
 
 
-def _build_circuit(ry: np.ndarray, edges: list[tuple[int, int]], cry: np.ndarray):
+def build_circuit(
+    ry: np.ndarray,
+    edges: list[tuple[int, int]],
+    cry: np.ndarray,
+    *,
+    measure: bool = False,
+):
+    """Build the RY + CRY circuit, optionally with a full measurement register."""
     from qiskit import QuantumCircuit
 
     n = len(ry)
@@ -24,13 +31,15 @@ def _build_circuit(ry: np.ndarray, edges: list[tuple[int, int]], cry: np.ndarray
         qc.ry(float(theta), qubit)
     for (control, target), alpha in zip(edges, cry):
         qc.cry(float(alpha), control, target)
+    if measure:
+        qc.measure_all()
     return qc
 
 
 def _probabilities(ry: np.ndarray, edges: list[tuple[int, int]], cry: np.ndarray) -> np.ndarray:
     from qiskit.quantum_info import Statevector
 
-    return np.asarray(Statevector(_build_circuit(ry, edges, cry)).probabilities(), dtype=float)
+    return np.asarray(Statevector(build_circuit(ry, edges, cry)).probabilities(), dtype=float)
 
 
 def block_moments(

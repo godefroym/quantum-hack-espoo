@@ -21,7 +21,8 @@ app = [
     "streamlit>=1.32",
 ]
 quantum = [
-    "qiskit>=1.0",
+    "qiskit>=2.4",
+    "qiskit-ibm-runtime>=0.46",
 ]
 
 [build-system]

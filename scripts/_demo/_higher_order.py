@@ -1,10 +1,9 @@
 """Criteria 2 & 3 — higher-order/tail structure and its effect on the cascade tail.
 
 Criterion 2 (genuine higher-order structure)
-    The entangled generator must carry joint-tail dependence the best **moment-matched** classical
-    model cannot reproduce. The Gaussian copula is the structural foil: matched to the same
-    marginals and pairwise correlations, it has *provably zero* lower-tail dependence and a
-    co-skewness pinned by its first two moments. The discriminators are the **excess** co-skewness
+    The entangled generator must carry joint-tail dependence a Gaussian structural foil cannot
+    reproduce after controlling first and second moments. The discriminators are the **excess**
+    co-skewness
     (sampled minus the closed-form Gaussian-copula reference) and the tail-dependence statistics.
     A Gaussian copula's excess co-skewness is finite-sample noise that vanishes as N grows; a
     genuinely higher-order joint keeps it large and stable. :func:`excess_coskewness_convergence`
@@ -13,7 +12,7 @@ Criterion 2 (genuine higher-order structure)
 Criterion 3 (material to risk)
     The extra structure must measurably *move the systemic-risk outcome* — the contagion-cascade
     tail — not merely show up as a static distributional difference. We compare, on the same spec
-    and the same cascade engine, the entangled generator against the moment-matched Gaussian foil:
+    and the same cascade engine, the entangled generator against the same-target Gaussian foil:
     ``p_severe_cascade``, the upper tail-means of the cascade size, and deep-tail co-default mass.
 
     One honest subtlety surfaced and is reported: at tiny credit marginals the systemic mode is
@@ -112,9 +111,9 @@ def excess_coskewness_convergence(
 ) -> list[tuple[int, float]]:
     """Return ``[(N, excess_coskewness_rms), ...]`` for a fitted generator across sample sizes.
 
-    For a Gaussian copula this sequence decays toward zero (its genuine higher-order structure is
-    zero — the signal is sampling noise); for the entangled generator it plateaus at a large value
-    (genuine structure). Showing the trajectory is the rigorous way to prove the excess is real.
+    For a Gaussian copula this sequence decays toward zero because the reference is Gaussian.
+    Persistence for another generator is evidence of structure beyond that reference, provided
+    first- and second-order fit is assessed separately.
     """
     generator.fit(spec)
     out: list[tuple[int, float]] = []

@@ -5,29 +5,21 @@ entangled scenario generator carries genuine *higher-order joint-tail structure*
 second-order classical foil -- one calibrated to the same per-institution default
 probabilities and the same pairwise default correlations -- structurally cannot reproduce.
 
-First/second-order summaries (marginals, pairwise correlation) cannot distinguish such a
-generator from its moment-matched foil, so two moment-defined / tail-defined discriminators
-are used, both of which a second-order model provably cannot fake:
+First/second-order summaries (marginals, pairwise correlation) cannot distinguish a generator
+from a genuinely moment-matched foil. This module therefore reports a Gaussian-reference
+third-order statistic plus descriptive tail summaries:
 
 * **Connected third cumulant (co-skewness).** ``C_ijk = E[(x_i-p_i)(x_j-p_j)(x_k-p_k)]`` is
   the part of three-way co-default not carried by the marginals or pairwise correlations. It
   is exactly zero under independence, and for a Gaussian copula it is *pinned* by the
   marginals and the correlation matrix (a threshold-nonlinearity term, recovered in closed
-  form by :func:`gaussian_copula_reference_coskewness`). The **excess** of the sampled
-  co-skewness over that Gaussian-copula reference therefore isolates structure beyond second
-  order: it is near zero for any elliptical / second-order model -- even one carrying strong
-  correlation -- but large for a genuinely non-elliptical joint such as a rare common shock
-  that defaults the whole system at once on top of an idiosyncratic background.
+  form by :func:`gaussian_copula_reference_coskewness`). Excess over that reference isolates
+  structure beyond this specific Gaussian foil.
 
-* **Lower-tail dependence.** A Gaussian copula has provably zero lower-tail dependence at any
-  correlation ``< 1``: extreme co-default does not cluster in the limit. The pairwise
-  lower-tail-dependence coefficient and the aggregate default-count tail ratio both read near
-  the independence baseline for a Gaussian copula (its tail clustering decays to zero as the
-  tail deepens) and clearly positive for clustered joints. :func:`joint_tail_excess` sharpens
-  this into the many-defaults-at-once statistic -- the probability that a large fraction
-  default together in excess of the same-marginal independence baseline -- exactly the
-  joint-extreme co-default that the 2008 Gaussian-copula credit model, matched on average
-  correlation but blind to it, priced at zero.
+* **Tail summaries.** Pairwise conditional default rates, aggregate default-count concentration,
+  and excess many-default probability describe clustering. Their baselines must be stated:
+  pairwise conditional default is second order, while aggregate and joint-tail summaries should
+  only be compared after checking realized lower-order moments.
 """
 
 from __future__ import annotations
@@ -50,8 +42,8 @@ class HigherOrderStructure:
     cumulant over all institution triples. ``excess_coskewness_rms`` /
     ``excess_coskewness_max`` summarise the part of that co-skewness *not* explained by a
     Gaussian copula matched to the sample's own marginals and pairwise correlations; these
-    are the beyond-second-order discriminators (near zero for any elliptical model, large
-    for a genuinely higher-order joint).
+    are the beyond-Gaussian discriminators (near zero for a Gaussian copula, potentially large
+    for a non-Gaussian joint).
     """
 
     coskewness_rms: float
@@ -65,12 +57,13 @@ class HigherOrderStructure:
 class TailDependence:
     """Lower-tail (joint-extreme co-default) dependence of a binary sample matrix.
 
-    ``aggregate_tail_dependence`` is ``P(K >= upper | K >= inner)`` for the aggregate default
-    count ``K`` at two high quantiles -- does the extreme cluster beyond what the bulk
-    implies. ``pairwise_lower_tail_dependence`` is the mean over ordered pairs of
+    ``aggregate_tail_dependence`` is the empirical concentration ratio
+    ``P(K >= upper) / P(K >= inner)`` for aggregate default count ``K`` at two high quantiles.
+    ``pairwise_lower_tail_dependence`` is the mean over ordered pairs of
     ``P(x_i = 1 | x_j = 1)``, the chance a second institution defaults given the first does;
     ``excess_pairwise_lower_tail_dependence`` subtracts the independence baseline (the mean
-    marginal), leaving the clustering that pairwise correlation alone does not pin down.
+    marginal). For binary indicators this is a second-order diagnostic fixed by the marginals and
+    pairwise joint probabilities; it is not higher-order evidence by itself.
     ``joint_tail_excess`` is the excess probability that at least a fixed fraction of
     institutions default *together* over the same-marginal independence baseline -- the
     many-defaults-at-once statistic that is exactly zero in expectation under independence and
@@ -189,9 +182,9 @@ def aggregate_tail_dependence(
     """Return ``P(K >= upper | K >= inner)`` for the aggregate default count ``K``.
 
     ``K`` is the per-scenario number of defaults. The two thresholds are the ``inner`` and
-    ``upper`` empirical quantiles of ``K``. The ratio measures whether the far tail clusters
-    beyond the merely-large tail: it tends to zero for a Gaussian copula (no joint-extreme
-    co-default) and to one for a comonotone / all-together joint.
+    ``upper`` empirical quantiles of ``K``. This is a finite-sample, discrete-count summary,
+    not the asymptotic copula tail-dependence coefficient. It becomes uninformative when the
+    two quantile thresholds coincide.
     """
     samples = ensure_binary_samples(samples)
     if not 0.0 < inner_quantile < upper_quantile < 1.0:
@@ -212,8 +205,8 @@ def pairwise_lower_tail_dependence(samples: np.ndarray) -> tuple[float, float]:
     The first value is the mean over ordered institution pairs of the chance that ``i``
     defaults given ``j`` defaults -- the empirical lower-tail co-default rate. The second
     subtracts the mean marginal (what that rate would be under independence), so it is near
-    zero for independent or Gaussian-copula samples and clearly positive when defaults
-    cluster.
+    zero for independent samples and positive whenever defaults cluster pairwise. Generators
+    matched on first and second moments should agree on it.
     """
     samples = ensure_binary_samples(samples).astype(float)
     n_samples, n = samples.shape

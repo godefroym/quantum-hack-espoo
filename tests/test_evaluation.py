@@ -24,3 +24,17 @@ def test_evaluation_harness_returns_comparison_rows() -> None:
         "systemic_collapse_frequency",
         "p_severe_cascade",
     }.issubset(frame.columns)
+
+
+def test_evaluation_harness_can_skip_expensive_joint_structure() -> None:
+    spec = make_synthetic_system(n=12, seed=5)
+    harness = EvaluationHarness(
+        spec,
+        n_samples=80,
+        seed=10,
+        include_joint_structure=False,
+    )
+    result = harness.run([BernoulliGenerator()])[0]
+
+    assert "p_severe_cascade" in result.metrics
+    assert "excess_coskewness_rms" not in result.metrics

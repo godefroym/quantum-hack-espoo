@@ -20,6 +20,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from systemic_risk.generators.moments import targets_from_spec
 from systemic_risk.spec import SystemSpec
 
 
@@ -56,12 +57,10 @@ def second_order_match(
     spec: SystemSpec,
     achievable: np.ndarray,
 ) -> SecondOrderMatch:
-    """Score one generator's empirical marginals/correlations against target + ceiling."""
+    """Score one generator's empirical binary moments against the canonical target."""
     marginals, corr = empirical_marginals_and_corr(samples)
     iu = np.triu_indices(spec.n, k=1)
-    nominal = (
-        np.zeros_like(corr) if spec.target_pairwise_corr is None else spec.target_pairwise_corr
-    )
+    nominal = targets_from_spec(spec).pairwise_corr
     marg_err = marginals - spec.marginal_default_probs
     corr_err_nominal = corr[iu] - nominal[iu]
     corr_err_achievable = corr[iu] - achievable[iu]

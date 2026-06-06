@@ -105,6 +105,38 @@ def test_gaussian_copula_uses_latent_correlation_without_reinversion() -> None:
     ) < 0.008
 
 
+def test_student_t_copula_calibrates_to_shared_binary_moments() -> None:
+    p = np.array([0.08, 0.12, 0.18])
+    corr = np.array(
+        [
+            [1.0, 0.18, 0.10],
+            [0.18, 1.0, 0.14],
+            [0.10, 0.14, 1.0],
+        ]
+    )
+    spec = SystemSpec(
+        node_names=["A", "B", "C"],
+        node_types=["bank"] * 3,
+        exposure_matrix=np.zeros((3, 3)),
+        capital_buffers=np.ones(3),
+        marginal_default_probs=p,
+        target_pairwise_corr=corr,
+        clusters=["test"] * 3,
+        metadata={"correlation_space": "binary_default"},
+    )
+    generator = StudentTCopulaGenerator(df=4.0)
+    generator.fit(spec)
+    observed = empirical_moments(generator.sample(120_000, seed=456))
+    targets = targets_from_spec(spec)
+    mask = targets.off_diagonal_mask
+
+    assert generator.targets_ is not None
+    assert np.max(np.abs(observed.marginals - targets.marginals)) < 0.008
+    assert np.max(
+        np.abs(observed.pairwise_corr[mask] - targets.pairwise_corr[mask])
+    ) < 0.025
+
+
 def test_b_and_c_share_identical_moment_targets() -> None:
     spec = make_synthetic_system(n=12, seed=8)
     gaussian = GaussianCopulaGenerator()

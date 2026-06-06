@@ -48,7 +48,12 @@ def main() -> None:
         StudentTCopulaGenerator(df=4.0),
         EntangledBornMachineGenerator(ansatz="entangled", calibrate=True),
     ]
-    harness = EvaluationHarness(spec, n_samples=20_000, seed=2026)
+    harness = EvaluationHarness(
+        spec,
+        n_samples=20_000,
+        seed=2026,
+        include_joint_structure=False,
+    )
     results = harness.run(generators)
     frame = harness.to_frame(results)
     frame.to_csv(OUTPUTS / "comparison.csv", index=False)

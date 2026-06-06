@@ -17,6 +17,7 @@ from systemic_risk.data import make_synthetic_system
 from systemic_risk.generators import EntangledBornMachineGenerator, EntangledPQCGenerator
 from systemic_risk.generators.base import sample_diagnostics
 from systemic_risk.generators.gaussian_copula import GaussianCopulaGenerator
+from systemic_risk.evaluation.joint_structure import higher_order_structure
 from systemic_risk.generators.quantum import ansatz as A
 from systemic_risk.generators.quantum.statevector import StateVector, sample_bitstrings
 from systemic_risk.models.ising import LossDistribution
@@ -242,31 +243,40 @@ def test_ghz_blend_closed_form_matches_exact_statevector() -> None:
     assert np.allclose(state_pmf, blend.loss_count_pmf(), atol=1e-12)
 
 
+def test_ghz_blend_calibrates_exact_coherent_moments() -> None:
+    blend = A.GHZBlend.from_targets(n=8, target_marginal=0.05, target_default_corr=0.4)
+    assert abs(blend.marginal() - 0.05) < 1e-8
+    assert abs(blend.default_correlation() - 0.4) < 1e-8
+
+
 # ------------------------------------------- higher-order / tail dependence vs Gaussian foil
-def test_entanglement_carries_tail_dependence_beyond_gaussian_copula() -> None:
-    """In the credit regime, at matched marginals, both quantum ansaetze cluster defaults far
-    more than a Gaussian copula (which has provably zero asymptotic tail dependence): larger
-    connected co-skewness and a much higher conditional co-default rate."""
+def test_symmetric_loader_carries_structure_beyond_matched_gaussian_copula() -> None:
+    """The exchangeable loader has third-order structure beyond matched Gaussian moments."""
     n = 8
     spec = _homogeneous_spec(n, p=0.05, rho=0.4)
     n_samples = 200_000
 
-    ghz = EntangledBornMachineGenerator(ansatz="ghz_systemic")
-    ghz.fit(spec)
     symmetric = EntangledBornMachineGenerator(ansatz="entangled")  # homogeneous -> symmetric loader
     symmetric.fit(spec)
     gaussian = GaussianCopulaGenerator()
     gaussian.fit(spec)
 
-    ghz_samples = ghz.sample(n_samples, seed=1)
     symmetric_samples = symmetric.sample(n_samples, seed=1)
     gaussian_samples = gaussian.sample(n_samples, seed=1)
 
-    gaussian_coskew = _coskewness_rms(gaussian_samples)
+    symmetric_structure = higher_order_structure(symmetric_samples)
+    gaussian_structure = higher_order_structure(gaussian_samples)
     gaussian_conditional = _conditional_co_default(gaussian_samples)
-    for samples in (ghz_samples, symmetric_samples):
-        assert _coskewness_rms(samples) > 3.0 * gaussian_coskew
-        assert _conditional_co_default(samples) > 1.8 * gaussian_conditional
+    symmetric_conditional = _conditional_co_default(symmetric_samples)
+
+    # Conditional co-default is fixed by first and second moments, so matched generators agree.
+    assert abs(symmetric_conditional - gaussian_conditional) < 0.03
+    # The connected third cumulant in excess of the Gaussian reference is the discriminator.
+    assert symmetric_structure.excess_coskewness_rms > 0.2
+    assert (
+        symmetric_structure.excess_coskewness_rms
+        > 10.0 * gaussian_structure.excess_coskewness_rms
+    )
 
 
 # ------------------------------------------------------------ real-data spec consumption

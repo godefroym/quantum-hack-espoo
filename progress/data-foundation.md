@@ -94,7 +94,15 @@ real bilateral data is confidential → gravity reconstruction) · **events** �
 
 ### Root-cause (isolated)
 
-- The **MCMC sampler (Gibbs / parallel tempering, n>20) is wrong**: check C feeds it the *same*
+> **Integration correction (2026-06-06).** The replica-swap Metropolis ratio had its sign
+> reversed and is now fixed, with a regression test against exact homogeneous moments at small
+> `n`. A manual `n=54` smoke test improved the marginal from the previously reported `0.375` to
+> about `0.037` for a `0.040` target, but still underestimates default correlation (`~0.05` vs
+> `0.10`) at the tested sampling budget. Large-system convergence and ladder tuning therefore
+> remain open; the sampler is no longer considered fully validated at `n=54`.
+
+- The original audit found the **MCMC sampler (Gibbs / parallel tempering, n>20) wrong**:
+  check C feeds it the *same*
   `IsingModel(fields, couplings)` construction that check A validates to machine precision via exact
   enumeration, yet sampling overshoots massively (0.375 vs 0.040 marginal). So the physics/energy
   function is correct and the **bug lives in the sampler** — likely parallel-tempering replica handling
@@ -121,8 +129,9 @@ tests:     8 passed (existing) — no new tests yet
 
 ## Next steps (priority order)
 
-1. **Fix the MCMC sampler** (`models/ising.py` Gibbs/parallel-tempering) → re-run check C until
-   TV(MCMC@54, oracle) ≲ 0.03 and marginal ≈ target.
+1. **Finish validating/tuning the corrected MCMC sampler** (`models/ising.py`
+   parallel-tempering) → re-run check C until TV(MCMC@54, oracle) ≲ 0.03 and both marginal and
+   correlation match the target.
 2. **Fix coupling-scale calibration** at n=54 in `IsingBoltzmannGenerator._resolve_coupling_scale`.
 3. **Finish #11**: generate datasets for n ∈ {12, 20, 30, 54} (`spec.json`, `samples.npz`,
    `diagnostics.json`), `scripts/generate_synthetic_data.py`, `tests/test_ising.py`,

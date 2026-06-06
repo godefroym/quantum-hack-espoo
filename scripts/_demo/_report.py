@@ -115,9 +115,8 @@ def verdict_criterion_1(
         return Verdict(
             "1 Honest comparison",
             "PASS",
-            detail + " — clean 2nd-order drop-in on the exchangeable target (where every classical "
-            "baseline collapses at this marginal), and at least as close as the best classical on "
-            "the heterogeneous real community.",
+            detail + " — clean 2nd-order drop-in on the exchangeable target and at least as close "
+            "as the best classical model on the heterogeneous real community.",
         )
     if marg_ok and at_least_as_good:
         return Verdict(
@@ -169,11 +168,11 @@ def verdict_criterion_3(
     *,
     min_severe_ratio: float = 1.5,
 ) -> Verdict:
-    """Material to risk: the entangled generator must move the cascade tail vs the moment-matched
-    foil — more severe-cascade probability / deeper-tail co-default and a heavier tail-mean.
+    """Material to risk versus the same-target Gaussian foil.
 
     PASS if ``p_severe_cascade`` (or the deep ``p_cascade_half_or_more``) and the 1% cascade
-    tail-mean are both materially larger for the entangled generator than for the foil.
+    tail-mean are both materially larger. A PASS is not causal evidence for higher-order structure
+    unless the realized first and second moments are also matched.
     """
     e_sev = entangled.metrics["p_severe_cascade"]
     f_sev = gaussian_foil.metrics["p_severe_cascade"]

@@ -9,6 +9,22 @@ audit that reproduced every headline number and ran a confound-free re-test of t
 The audit's job was to *break* the prior agent's "all three criteria PASS" self-report; what
 survived and what did not is recorded honestly below.
 
+> **Integration correction (2026-06-06).** The real network stores equity correlation in
+> `latent_gaussian` space. The first version of the demonstration incorrectly scored sampled
+> binary defaults against that raw latent matrix and applied Bernoulli Fréchet bounds to it.
+> After conversion through the canonical `targets_from_spec` path, the largest community's mean
+> binary-default target is about 0.149, not 0.680. On the corrected benchmark the Gaussian copula
+> is the strongest second-order match (RMSE about 0.022), followed by Student-t (about 0.024), then
+> the entangled generator (about 0.073). Historical numbers below that describe a 0.61 "achievable
+> ceiling", 36% infeasibility, or Gaussian collapse are superseded by this correction.
+>
+> **IBM hardware smoke test (2026-06-06).** The fitted four-qubit `RY + CRY` block was transpiled
+> and executed through Qiskit Runtime `SamplerV2` on `ibm_fez` (job
+> `d8i2cmlv8cos73f529u0`, 1,024 shots). The ISA circuit had depth 68 and 18 CZ gates.
+> Hardware-versus-ideal RMSE was 0.0290 on marginals and 0.00791 on pairwise joint probabilities.
+> This validates the small-block hardware path; it is not evidence for the homogeneous 54-qubit
+> state-loader, the block-separable full network, or QAE.
+
 > **⚠️ Known weakness (documented this stage, deliberately not patched).** The headline
 > demonstration (`scripts/run_demonstration.py`) still scores **Criterion 3 ("material to risk")**
 > against an *under-correlated* Gaussian foil (foil realizes mean corr ≈ 0.147 vs the entangled

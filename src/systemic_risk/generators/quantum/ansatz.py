@@ -379,14 +379,13 @@ class GHZBlend:
         *,
         benign_fraction: float = 0.3,
     ) -> "GHZBlend":
-        """Solve ``(weight, systemic)`` reproducing a target marginal and default correlation.
+        """Solve ``(weight, systemic)`` for the coherent state's exact moments.
 
-        ``benign`` is fixed at a small fraction of the marginal; ``weight`` is pinned by the
-        marginal identity ``p = weight*systemic + (1-weight)*benign`` for each candidate
-        ``systemic``, and ``systemic`` is bracketed so the closed-form default correlation
-        hits the target (correlation increases with the systemic level).
+        The two product components are not orthogonal, so their coherent superposition does not
+        obey the classical-mixture marginal identity. That identity is used only to seed a bounded
+        two-moment solve against :meth:`marginal` and :meth:`default_correlation`.
         """
-        from scipy.optimize import brentq
+        from scipy.optimize import brentq, least_squares
 
         target_marginal = float(np.clip(target_marginal, *_CLIP))
         benign = max(_EPS, target_marginal * benign_fraction)
@@ -409,4 +408,39 @@ class GHZBlend:
             systemic = hi
         else:
             systemic = brentq(corr_residual, lo, hi, xtol=1e-12, maxiter=200)
-        return make(systemic)
+        seed = make(systemic)
+
+        def residual(params: np.ndarray) -> np.ndarray:
+            candidate = cls(
+                n=n,
+                weight=float(params[0]),
+                benign=benign,
+                systemic=float(params[1]),
+            )
+            return np.array(
+                [
+                    candidate.marginal() - target_marginal,
+                    candidate.default_correlation() - target_default_corr,
+                ]
+            )
+
+        solved = least_squares(
+            residual,
+            x0=np.array([seed.weight, seed.systemic]),
+            bounds=(
+                np.array([_EPS, target_marginal + 1e-6]),
+                np.array([1.0 - _EPS, 1.0 - 1e-6]),
+            ),
+            xtol=1e-13,
+            ftol=1e-13,
+            gtol=1e-13,
+            max_nfev=500,
+        )
+        if not solved.success or np.max(np.abs(residual(solved.x))) > 1e-7:
+            raise RuntimeError("could not calibrate GHZ blend to the requested moments")
+        return cls(
+            n=n,
+            weight=float(solved.x[0]),
+            benign=benign,
+            systemic=float(solved.x[1]),
+        )

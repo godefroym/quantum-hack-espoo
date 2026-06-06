@@ -19,6 +19,8 @@ def compute_metrics(
     cascade_results: list[CascadeResult],
     spec: SystemSpec,
     severe_threshold: int,
+    *,
+    include_joint_structure: bool = True,
 ) -> dict[str, float]:
     """Compute scenario-generation and contagion tail metrics."""
     samples = np.asarray(samples, dtype=int)
@@ -40,10 +42,7 @@ def compute_metrics(
         dtype=float,
     )
 
-    structure = higher_order_structure(samples)
-    dependence = tail_dependence(samples)
-
-    return {
+    metrics = {
         "mean_cascade_size": float(failures.mean()),
         "mean_failure_fraction": float(failures.mean() / spec.n),
         "mean_cascade_depth": float(depths.mean()),
@@ -70,17 +69,27 @@ def compute_metrics(
             )
         ),
         "scenario_diversity": float(diagnostics.n_unique_scenarios / max(len(samples), 1)),
-        "coskewness_rms": structure.coskewness_rms,
-        "coskewness_max": structure.coskewness_max,
-        "excess_coskewness_rms": structure.excess_coskewness_rms,
-        "excess_coskewness_max": structure.excess_coskewness_max,
-        "aggregate_tail_dependence": dependence.aggregate_tail_dependence,
-        "pairwise_lower_tail_dependence": dependence.pairwise_lower_tail_dependence,
-        "excess_pairwise_lower_tail_dependence": dependence.excess_pairwise_lower_tail_dependence,
-        "joint_tail_excess": dependence.joint_tail_excess,
         "cascade_count_cvar_95": cascade_count_cvar(failures, alpha=0.95),
         "cascade_count_cvar_99": cascade_count_cvar(failures, alpha=0.99),
     }
+    if include_joint_structure:
+        structure = higher_order_structure(samples)
+        dependence = tail_dependence(samples)
+        metrics.update(
+            {
+                "coskewness_rms": structure.coskewness_rms,
+                "coskewness_max": structure.coskewness_max,
+                "excess_coskewness_rms": structure.excess_coskewness_rms,
+                "excess_coskewness_max": structure.excess_coskewness_max,
+                "aggregate_tail_dependence": dependence.aggregate_tail_dependence,
+                "pairwise_lower_tail_dependence": dependence.pairwise_lower_tail_dependence,
+                "excess_pairwise_lower_tail_dependence": (
+                    dependence.excess_pairwise_lower_tail_dependence
+                ),
+                "joint_tail_excess": dependence.joint_tail_excess,
+            }
+        )
+    return metrics
 
 
 def result_summary(result: CascadeResult) -> dict[str, Any]:

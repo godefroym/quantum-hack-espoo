@@ -13,8 +13,9 @@ What it is careful about (see the module docstrings under ``scripts/_demo``):
   * the criterion-1 spec is one community, where the entangled generator is a single fully-
     simulated block — on the whole 28-bank network it is block-separable and cross-cluster
     correlation collapses, which we *show* rather than paper over;
-  * the moment-matched Gaussian copula is the structural foil for criteria 2 & 3, with its excess
-    co-skewness convergence reported to prove that foil's higher-order signal is vanishing noise.
+  * the Gaussian copula is calibrated to the same canonical targets; realized second-order errors
+    are reported explicitly, and criterion 3 is not called a matched-moment comparison when those
+    realized moments differ.
 
 Run:
     uv run python scripts/run_demonstration.py
@@ -54,6 +55,7 @@ from systemic_risk.generators import (  # noqa: E402
     GaussianCopulaGenerator,
     StudentTCopulaGenerator,
 )
+from systemic_risk.generators.moments import targets_from_spec  # noqa: E402
 from systemic_risk.visualization import plot_community_network  # noqa: E402
 
 
@@ -85,13 +87,18 @@ def run_real_network_overview() -> None:
     clusters = np.asarray(spec.clusters)
     labels, counts = np.unique(clusters, return_counts=True)
     iu = np.triu_indices(spec.n, k=1)
-    corr = spec.target_pairwise_corr
+    raw_corr = spec.target_pairwise_corr
+    corr = targets_from_spec(spec).pairwise_corr
     p = spec.marginal_default_probs
     print(f"  n={spec.n} institutions, communities={dict(zip(labels.tolist(), counts.tolist()))}")
     print(f"  marginals: mean={p.mean():.4g}  range=[{p.min():.4g}, {p.max():.4g}]  (tiny-credit)")
-    print(f"  target corr off-diag: mean={corr[iu].mean():.3f}  range=[{corr[iu].min():.3f}, "
-          f"{corr[iu].max():.3f}]")
-    print(f"  Fréchet-infeasible target correlations: {infeasible_fraction(spec):.1%} "
+    if spec.correlation_space == "latent_gaussian" and raw_corr is not None:
+        print(f"  latent/equity corr mean={raw_corr[iu].mean():.3f}; induced binary-default "
+              f"corr mean={corr[iu].mean():.3f}")
+    else:
+        print(f"  binary-default corr mean={corr[iu].mean():.3f}")
+    print(f"  binary target range=[{corr[iu].min():.3f}, {corr[iu].max():.3f}]")
+    print(f"  Fréchet-infeasible binary correlations: {infeasible_fraction(spec):.1%} "
           "(unreachable by ANY binary generator at these marginals)")
 
     plot_path = OUTPUTS / "real_network_communities.png"
@@ -129,7 +136,8 @@ def run_criteria_on_community() -> tuple[list, dict]:
     achievable = achievable_corr(spec)
     iu = np.triu_indices(spec.n, k=1)
     print(f"Criterion spec: {bundle.label}")
-    print(f"  n={spec.n}; target corr mean={spec.target_pairwise_corr[iu].mean():.3f}, "
+    target_corr = targets_from_spec(spec).pairwise_corr
+    print(f"  n={spec.n}; binary target corr mean={target_corr[iu].mean():.3f}, "
           f"achievable (Fréchet) ceiling mean={achievable[iu].mean():.3f}; "
           f"infeasible targets={infeasible_fraction(spec):.0%}")
     print(f"  real interbank exposure in block: {spec.exposure_matrix.sum():.0f}; "
@@ -158,8 +166,8 @@ def run_criteria_on_community() -> tuple[list, dict]:
     # Criterion 1b: the exchangeable-target capability test, at the SAME tiny credit marginal.
     print(R.subheader("Criterion 1b — clean drop-in on an exchangeable target (same marginal)"))
     homogeneous_match = _homogeneous_capability(spec)
-    print("  (uniform marginal = community mean, single feasible equicorrelation — the regime")
-    print("   where every classical copula collapses at this default level)")
+    print("  (uniform marginal = community mean, one feasible binary-default correlation;")
+    print("   this checks calibration capability without heterogeneous-edge interference)")
     print(R.format_table(R.second_order_table(homogeneous_match)))
 
     v1 = R.verdict_criterion_1(
@@ -182,7 +190,7 @@ def run_criteria_on_community() -> tuple[list, dict]:
         print(f"    {label}: {trail}")
     v2 = R.verdict_criterion_2(entangled, gaussian, conv_gauss)
 
-    # ---- Criterion 3: cascade-tail movement vs the moment-matched foil ----------------------- #
+    # ---- Criterion 3: cascade-tail movement vs the same-target Gaussian foil ---------------- #
     print(R.subheader("Criterion 3 — does it MOVE the contagion-cascade tail?"))
     print(R.format_table(R.metrics_table(evaluations, CASCADE_TAIL_KEYS + DEEP_TAIL_KEYS)))
     print("\n  Note: at tiny marginals the systemic mode is rare-but-catastrophic, so the fixed-α")

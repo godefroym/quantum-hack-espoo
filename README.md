@@ -13,7 +13,7 @@ A generator-agnostic benchmark that keeps the comparison honest — same synthet
 - Independent Bernoulli baseline
 - Gaussian copula baseline
 - Student-t copula baseline
-- Entangled generator (quantum circuit Born machine target; classical Ising/Boltzmann sampler as the current stand-in)
+- Entangled Born-machine generator (exact NumPy/Qiskit statevector locally, IBM Runtime hardware path)
 
 > Headline: under matched marginals and pairwise dependencies, which generator reaches the most severe plausible contagion tails?
 
@@ -36,7 +36,9 @@ A = U_QCBM (load P(x)) -> U_severity (cascade oracle) -> mark severe
   => AA  : discover the worst plausible scenario
 ```
 
-**Implemented vs. designed.** The classical baselines, the cascade simulator, and the comparison harness are implemented today. The Born-machine loader and the QAE cascade oracle are the quantum layer this MVP is structured around.
+**Implemented vs. designed.** The classical baselines, cascade simulator, comparison harness, and
+small-block Born-machine circuit are implemented. The circuit can be emulated exactly or submitted
+to IBM hardware. The reversible cascade oracle and QAE remain future work.
 
 ## What This Does Not Claim
 
@@ -80,7 +82,8 @@ uv run python scripts/run_mvp.py     # run the benchmark
 
 `uv run` executes inside the managed environment, so there is nothing to activate.
 
-Expected outputs in `outputs/`: `network.png`, `comparison.csv`, one crisis card per generator, and `synthetic_system.json`.
+Expected outputs in `outputs/`: `network.png`, `comparison.csv`, one crisis card per generator, and
+`real_system.json`.
 
 Run tests:
 
@@ -176,9 +179,44 @@ The app and quantum layers are opt-in extras, kept out of the base install:
 # Streamlit + Plotly dashboard
 uv run --extra app streamlit run app/streamlit_app.py
 
-# Real Qiskit backend for the entangled generator (otherwise a classical fallback sampler is used)
-uv run --extra quantum python scripts/run_mvp.py
+# Install Qiskit plus IBM Runtime support
+uv sync --extra quantum
+
+# Dry-run the explicit IBM hardware smoke test (does not submit a job)
+uv run --extra quantum python scripts/run_ibm_quantum_test.py
 
 # Install every extra into .venv
 uv sync --all-extras
 ```
+
+### IBM Quantum hardware
+
+IBM Quantum exposes hardware through Qiskit Runtime. Create an IBM Quantum Platform account and API
+key, then save it interactively without exposing it in shell history:
+
+```bash
+uv run --extra quantum python scripts/configure_ibm_quantum.py
+```
+
+Alternatively, provide:
+
+```bash
+export IBM_QUANTUM_TOKEN="..."
+# Optional for accounts with an explicit service instance:
+export IBM_QUANTUM_INSTANCE="..."
+```
+
+Submit the four-qubit smoke test only after reviewing the dry-run:
+
+```bash
+uv run --extra quantum python scripts/run_ibm_quantum_test.py --submit
+
+# Or select a backend explicitly:
+uv run --extra quantum python scripts/run_ibm_quantum_test.py \
+  --backend <backend-name> --shots 4096 --submit
+```
+
+The script transpiles the fitted `RY + CRY` circuit to the backend ISA, executes it with
+`SamplerV2`, and writes samples plus hardware-versus-ideal errors to `outputs/ibm_quantum/`.
+Submitting may consume plan allocation and wait in the provider queue. Credentials are never read
+from repository files.
