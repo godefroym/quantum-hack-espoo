@@ -91,7 +91,17 @@ uv run pytest tests/test_data_network.py -q
 
 ## Dependency clustering and entanglement layout
 
-Shay's clustering layer combines binary-default correlation and symmetrised
+The contagion simulator stays classical, deterministic, and generator-agnostic.
+This clustering layer does a different job: it decides which institutions are
+"close enough" to deserve entanglement structure in the quantum generator and
+layout.
+
+The rule of thumb is simple:
+
+- strong positive correlation or strong mutual exposure -> same cluster -> candidate entanglement edge
+- weak dependency, cross-cluster, or distant institutions -> keep classical -> no expensive entanglement needed
+
+In practice, the layout combines binary-default correlation and symmetrised
 exposure strength, detects deterministic threshold-connected clusters, selects
 sparse intra-cluster entanglers, and schedules them into collision-free circuit
 layers:
@@ -104,6 +114,10 @@ The example writes `outputs/entanglement_layout.png` and
 `outputs/dependency_matrix.png`. The layout can also drive the Born machine
 directly with `EntangledBornMachineGenerator(layout_strategy="clustered")`;
 the original strongest-edge strategy remains the default for reproducibility.
+
+The point is to use entanglement only where systemic-risk dependencies are
+dense and meaningful, while keeping weak or distant relationships classical so
+the quantum layout stays sparse, interpretable, and financially motivated.
 
 The earlier standalone `contagion/` prototype is not a second runtime package:
 its simulator, metrics, and plots were integrated into
