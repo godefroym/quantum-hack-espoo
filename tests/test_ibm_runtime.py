@@ -5,7 +5,10 @@ import pytest
 
 from systemic_risk.generators.quantum.ibm_runtime import (
     DEFAULT_HARDWARE_SHOTS,
+    ReadoutCalibration,
     _bitstrings_to_samples,
+    _split_shots,
+    mitigate_readout_moments,
 )
 from systemic_risk.generators.quantum.qiskit_backend import build_circuit
 from systemic_risk.spec import SystemSpec
@@ -13,6 +16,11 @@ from systemic_risk.spec import SystemSpec
 
 def test_default_hardware_shot_budget_is_one_hundred_thousand() -> None:
     assert DEFAULT_HARDWARE_SHOTS == 100_000
+
+
+def test_large_hardware_run_is_split_at_backend_limit() -> None:
+    assert _split_shots(1_000_000, 100_000) == (100_000,) * 10
+    assert _split_shots(250_001, 100_000) == (100_000, 100_000, 50_001)
 
 
 def test_ibm_bitstrings_are_returned_in_institution_column_order() -> None:
@@ -26,6 +34,33 @@ def test_ibm_bitstrings_are_returned_in_institution_column_order() -> None:
             ]
         ),
     )
+
+
+def test_readout_mitigation_recovers_known_moments() -> None:
+    rng = np.random.default_rng(11)
+    latent = (rng.random((200_000, 2)) < np.array([0.15, 0.35])).astype(int)
+    latent[:, 1] |= latent[:, 0]
+    p10 = np.array([0.04, 0.06])
+    p01 = np.array([0.02, 0.03])
+    observed = latent.copy()
+    false_positive = (latent == 0) & (rng.random(latent.shape) < p01)
+    false_negative = (latent == 1) & (rng.random(latent.shape) < p10)
+    observed[false_positive] = 1
+    observed[false_negative] = 0
+    calibration = ReadoutCalibration(
+        backend_name="fake",
+        job_id="cal",
+        shots=len(latent),
+        p_meas_1_given_0=p01,
+        p_meas_0_given_1=p10,
+    )
+
+    marginals, pairwise = mitigate_readout_moments(observed, calibration)
+
+    expected_marginals = latent.mean(axis=0)
+    expected_joint = (latent.T @ latent) / len(latent)
+    assert np.allclose(marginals, expected_marginals, atol=0.003)
+    assert abs(pairwise[0, 1] - expected_joint[0, 1]) < 0.003
 
 
 def test_qiskit_hardware_circuit_contains_measurements() -> None:

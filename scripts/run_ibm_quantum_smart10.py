@@ -32,7 +32,11 @@ sys.path.insert(0, str(ROOT / "src"))
 from systemic_risk.data_network.assemble import build_system_spec
 from systemic_risk.generators.moments import empirical_moments, targets_from_spec
 from systemic_risk.generators.quantum import ansatz as A
-from systemic_risk.generators.quantum.ibm_runtime import DEFAULT_HARDWARE_SHOTS, run_block
+from systemic_risk.generators.quantum.ibm_runtime import (
+    DEFAULT_HARDWARE_SHOTS,
+    best_qubit_line,
+    run_block,
+)
 from systemic_risk.generators.quantum_born_machine import (
     _build_statevector,
     _statevector_block_moments,
@@ -62,37 +66,6 @@ def correlation_path(dep: np.ndarray) -> list[int]:
         path.append(nxt)
         used.add(nxt)
     return path
-
-
-def best_line(backend, length: int) -> tuple[list[int], np.ndarray]:
-    """Lowest-error connected qubit line on the device (readout + CZ error)."""
-    tgt = backend.target
-    nq = backend.num_qubits
-    ro = np.array([tgt["measure"][(q,)].error for q in range(nq)])
-    twoq = tgt["cz"] if "cz" in tgt else tgt["ecr"]
-    edges = {p: pr.error for p, pr in twoq.items() if pr is not None and pr.error is not None}
-    adj: dict[int, list[int]] = {}
-    for (i, j) in edges:
-        adj.setdefault(i, []).append(j)
-    best, best_cost = None, 1e9
-    for s in np.argsort(ro)[:40]:
-        path, used, cost = [int(s)], {int(s)}, float(ro[s])
-        for _ in range(length - 1):
-            cur = path[-1]
-            cand = [
-                (edges.get((cur, n), edges.get((n, cur), 9.0)) + ro[n], n)
-                for n in adj.get(cur, [])
-                if n not in used
-            ]
-            if not cand:
-                break
-            c, nxt = min(cand)
-            path.append(nxt)
-            used.add(nxt)
-            cost += c
-        if len(path) == length and cost < best_cost:
-            best, best_cost = path, cost
-    return best, ro
 
 
 def build_circuit_for(spec, banks: list[int]):
@@ -142,7 +115,7 @@ def main() -> None:
         instance=os.environ.get("IBM_QUANTUM_INSTANCE"),
     )
     backend = svc.backend(args.backend)
-    line, ro = best_line(backend, n)
+    line, ro = best_qubit_line(backend, n)
 
     # statistical-resolvability budget (independent of hardware noise)
     shot_sigma = np.sqrt(tgt_marg * (1 - tgt_marg) / args.shots)
