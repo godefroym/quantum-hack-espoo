@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from systemic_risk.generators.base import ScenarioGenerator, require_fitted
+from systemic_risk.generators.moments import MomentTargets, targets_from_spec
 from systemic_risk.spec import SystemSpec
 
 
@@ -44,10 +45,12 @@ class EntangledPQCGenerator(ScenarioGenerator):
         self.ry_angles_: np.ndarray | None = None
         self.edges_: list[tuple[int, int]] = []
         self.backend_ = "born-inspired-fallback"
+        self.targets_: MomentTargets | None = None
 
     def fit(self, spec: SystemSpec) -> None:
         self.spec_ = spec
-        p = np.clip(spec.marginal_default_probs, 1e-6, 1 - 1e-6)
+        self.targets_ = targets_from_spec(spec)
+        p = np.clip(self.targets_.marginals, 1e-6, 1 - 1e-6)
         self.bias_ = np.log(p / (1 - p))
         self.ry_angles_ = 2 * np.arcsin(np.sqrt(p))
 
@@ -82,8 +85,9 @@ class EntangledPQCGenerator(ScenarioGenerator):
         require_fitted(self.bias_, self.name)
         require_fitted(self.couplings_, self.name)
         rng = np.random.default_rng(seed)
-        target_p = self.spec_.marginal_default_probs
-        target_joint = self.spec_.target_pairwise_joint_probs()
+        require_fitted(self.targets_, self.name)
+        target_p = self.targets_.marginals
+        target_joint = self.targets_.pairwise_joint
         history: list[dict[str, float]] = []
         for step in range(n_steps):
             samples = self.sample(n_samples, seed=int(rng.integers(0, 2**32 - 1)))

@@ -81,6 +81,22 @@ Run tests:
 uv run pytest
 ```
 
+### Optional classical fire-sale extension
+
+The primary benchmark uses the fixed-point exposure cascade. A supplementary
+Huang et al. bank-asset engine evaluates the same binary initial-default
+scenarios under common-asset liquidation and price-impact feedback:
+
+```bash
+uv run python scripts/run_huang_2008_demo.py
+uv run python scripts/compare_generators_huang.py
+```
+
+See [`docs/huang_simulation.md`](docs/huang_simulation.md) for the equations,
+adapter, scope, and differences from the primary cascade engine. The comparison
+script writes calibration, cascade-distribution, and tail plots under
+`outputs/huang_generator_comparison/`.
+
 ### Optional extras
 
 The app and quantum layers are opt-in extras, kept out of the base install:

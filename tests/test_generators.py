@@ -9,6 +9,8 @@ from systemic_risk.generators import (
     GaussianCopulaGenerator,
     StudentTCopulaGenerator,
 )
+from systemic_risk.generators.moments import empirical_moments, targets_from_spec
+from systemic_risk.spec import SystemSpec
 
 
 def test_generators_return_binary_samples() -> None:
@@ -33,3 +35,52 @@ def test_bernoulli_is_seed_deterministic() -> None:
     generator.fit(spec)
 
     assert np.array_equal(generator.sample(20, seed=1), generator.sample(20, seed=1))
+
+
+def test_gaussian_copula_matches_binary_moments() -> None:
+    p = np.array([0.20, 0.30, 0.25])
+    corr = np.array(
+        [
+            [1.0, 0.16, 0.10],
+            [0.16, 1.0, 0.08],
+            [0.10, 0.08, 1.0],
+        ]
+    )
+    spec = SystemSpec(
+        node_names=["A", "B", "C"],
+        node_types=["bank"] * 3,
+        exposure_matrix=np.zeros((3, 3)),
+        capital_buffers=np.ones(3),
+        marginal_default_probs=p,
+        target_pairwise_corr=corr,
+        clusters=["test"] * 3,
+    )
+    generator = GaussianCopulaGenerator()
+    generator.fit(spec)
+
+    first = generator.sample(60_000, seed=321)
+    second = generator.sample(60_000, seed=321)
+    observed = empirical_moments(first)
+    targets = targets_from_spec(spec)
+
+    assert np.array_equal(first, second)
+    assert np.max(np.abs(observed.marginals - targets.marginals)) < 0.01
+    mask = targets.off_diagonal_mask
+    assert np.max(
+        np.abs(observed.pairwise_corr[mask] - targets.pairwise_corr[mask])
+    ) < 0.025
+
+
+def test_b_and_c_share_identical_moment_targets() -> None:
+    spec = make_synthetic_system(n=12, seed=8)
+    gaussian = GaussianCopulaGenerator()
+    entangled = EntangledPQCGenerator(gibbs_sweeps=2, burn_in=2)
+
+    gaussian.fit(spec)
+    entangled.fit(spec)
+
+    assert np.allclose(gaussian.targets_.marginals, entangled.targets_.marginals)
+    assert np.allclose(
+        gaussian.targets_.pairwise_joint,
+        entangled.targets_.pairwise_joint,
+    )

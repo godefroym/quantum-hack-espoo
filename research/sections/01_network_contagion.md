@@ -247,6 +247,30 @@ Consequences:
 - **Link.** DOI: 10.1257/jel.20151228 · open PDF (LSE):
   https://researchonline.lse.ac.uk/68681/1/Young_Contagion%20in%20financial.pdf
 
+### 10. Huang, Vodenska, Havlin & Stanley (2013) — Bank-asset fire-sale cascades
+- **Citation.** Xuqing Huang, Irena Vodenska, Shlomo Havlin, H. Eugene Stanley.
+  "Cascading Failures in Bi-partite Graphs: Model for Systemic Risk Propagation."
+  *Scientific Reports* 3: 1219, 2013.
+- **Method.** Builds a bipartite network between banks and asset classes. An exogenous asset
+  write-down reduces bank balance-sheet values; banks fail when marked-to-market assets cross a
+  randomized liability barrier; failed banks liquidate their portfolios, causing further
+  asset-price deductions and failures. This is a **common-asset / fire-sale channel**, not a
+  direct bilateral interbank-exposure channel.
+- **Data.** 2007 US commercial-bank balance sheets from WRDS/CBBSD: 7,846 banks and 13 asset
+  categories. The model is evaluated against FDIC failures from 2008–2011; 278 of the 371 failed
+  banks could be matched to the balance-sheet dataset. The paper reports construction and land
+  development loans and nonfarm nonresidential real-estate loans as the strongest crisis drivers.
+- **Public/proprietary.** **Bank-level CBBSD/WRDS inputs are proprietary.** The FDIC failure list
+  is public. Our implementation therefore uses the paper's published asset categories and average
+  weights to create a clearly-labelled synthetic test system.
+- **Project role.** Optional robustness engine. It consumes the same binary initial-default
+  scenarios as the primary fixed-point cascade, allowing the generators to be compared under a
+  second classical contagion mechanism without changing their sample format.
+- **Implementation.** `src/systemic_risk/simulator/huang.py`; mathematical conventions in
+  `docs/huang_simulation.md`.
+- **Link.** DOI: 10.1038/srep01219 ·
+  https://www.nature.com/articles/srep01219 · arXiv:1210.4973.
+
 ---
 
 ## Supporting / catalogued empirical studies (country → data source)
