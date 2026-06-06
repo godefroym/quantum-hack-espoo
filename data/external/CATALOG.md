@@ -116,6 +116,38 @@ All sources are free / public. Licenses recorded per row. URLs verified during t
 ### `ratings/Moodys_Default_1920-2004.pdf` — source PDF ✅
 - The full study (1.9 MB) retained for provenance/audit of the extracted table above. **License:** free PDF mirror.
 
+### `banks/gsib_roster.csv` — Real bank-network anchor roster ✅
+- **Contents:** curated roster of 28 real, publicly listed systemically important / large banks.
+  Columns: `bank_id, name, ticker, country, region, business_type, sp_rating,
+  total_assets_usd_bn, source`. Regions span US, UK, EU, CH, JP, CA, LATAM; business types
+  universal / investment / regional / custodian.
+- **Granularity:** one row per institution (node-level). **The real anchor for part A** —
+  the nodes of the exposure network.
+- **Format:** CSV. **License:** the roster is an original compilation of public facts (issuer
+  ratings, reported total assets); free to use with attribution.
+- **Sources:** public S&P long-term issuer ratings and FY2023 reported total assets (each row
+  cites its `source`). Total-assets figures are **approximate** (rounded ~$10bn) and used only
+  as a *relative balance-sheet scale* for the exposure reconstruction — not as marginals.
+- **Maps to:** **nodes** (institutions) · **`p_i`** (rating → 1-yr PD via `ratings/moodys_pd_by_rating.csv`,
+  Exhibit 17) · **`J_ij` constraints** (total assets × ~20% interbank share → per-node interbank
+  asset/liability totals that drive the bilateral reconstruction).
+
+### `banks/equity_corr.csv` (+ `equity_corr.meta.json`) — Real equity-return correlation ✅
+- **Contents:** the 28×28 ticker-labelled Pearson correlation matrix of **daily equity
+  log-returns** for the roster banks; sidecar JSON records tickers, window, obs count, source.
+- **Window:** 2021-06-01 → 2024-06-01, **755 trading days** (committed snapshot; reproducible).
+- **Format:** CSV (header = tickers) + JSON metadata. **License:** derived statistic computed
+  from public Yahoo Finance daily adjusted closes; the matrix itself is free to use.
+- **Source:** Yahoo Finance chart API (`query1.finance.yahoo.com/v8/finance/chart/<TICKER>`),
+  daily adjusted close → log-return correlation. Refresh with
+  `uv run python scripts/build_system_spec.py --refresh-equity`.
+- **Maps to:** the empirical **correlation_matrix** — the genuine network signal that drives
+  community detection (banks co-moving under common shocks cluster together) and serves as the
+  latent asset-return correlation the Gaussian/Student-t copula baselines threshold into
+  correlated defaults (Merton / single-factor ASRF reading).
+- *Note:* equity-return correlation is an **asset/latent** correlation, not a realised default
+  correlation; the copula mapping (threshold by marginals) turns it into co-default structure.
+
 ---
 
 ## Documented-only (verified URL/method; not committed) 📝
@@ -191,6 +223,8 @@ All sources are free / public. Licenses recorded per row. URLs verified during t
 
 | Dataset | Status | Model parameter |
 |---|---|---|
+| `banks/gsib_roster.csv` (28 real banks) | ✅ | **nodes** + **`p_i`** (via ratings) + **`J_ij`** constraints |
+| `banks/equity_corr.csv` (755 obs) | ✅ | **correlation_matrix** (clustering + copula latent corr) |
 | `fdic/failures.csv` (2000–2024) | ✅ | **events** |
 | `fdic/failures_1980_2024.csv` | ✅ | **events** (S&L + GFC clusters) |
 | `ratings/moodys_pd_by_rating.csv` | ✅ | **`p_i`** |

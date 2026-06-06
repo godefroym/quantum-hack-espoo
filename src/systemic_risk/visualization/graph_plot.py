@@ -37,6 +37,100 @@ def build_financial_graph(spec: SystemSpec) -> nx.DiGraph:
     return graph
 
 
+_COMMUNITY_PALETTE = [
+    "#2f6f9f", "#b24a3c", "#6f8f3a", "#9f6b2f", "#8f4d6f",
+    "#3a8f8f", "#7a5fb0", "#b08a2f", "#4f4f4f", "#c0507a",
+]
+
+
+def plot_community_network(
+    spec: SystemSpec,
+    path: str | Path | None = None,
+    seed: int = 11,
+    title: str = "Bank Exposure Network — Detected Communities",
+    max_edges: int | None = 90,
+) -> plt.Figure:
+    """Render the network coloured by detected community, with a community-aware layout.
+
+    Nodes are coloured by their ``spec.clusters`` label (the community-detection output),
+    sized by marginal default probability, and laid out so community structure is visible.
+    This is the legibility deliverable for part A: one clean plot that makes the cluster
+    story obvious. Falls back to type-colouring if no clusters are attached.
+
+    ``max_edges`` keeps only that many heaviest exposures for drawing (dense max-entropy
+    reconstructions are near-complete graphs and would otherwise render as a hairball); the
+    layout still uses the full weighted graph. Set to ``None`` to draw every edge.
+    """
+    if spec.clusters is None:
+        return plot_financial_network(spec, path=path, seed=seed)
+
+    graph = build_financial_graph(spec)
+    labels_sorted = sorted(set(spec.clusters))
+    color_of = {lab: _COMMUNITY_PALETTE[i % len(_COMMUNITY_PALETTE)]
+                for i, lab in enumerate(labels_sorted)}
+
+    # Community-aware layout: well-separated community centres on a circle, members ringed
+    # around their own centre. Deterministic (no spring relaxation that would collapse the
+    # heavy central hub of a dense max-entropy graph back into a single blob).
+    n_comm = len(labels_sorted)
+    centre_angles = np.linspace(0, 2 * np.pi, n_comm, endpoint=False)
+    centres = {
+        lab: np.array([np.cos(a), np.sin(a)]) * (3.2 if n_comm > 1 else 0.0)
+        for lab, a in zip(labels_sorted, centre_angles)
+    }
+    members: dict[object, list[int]] = {lab: [] for lab in labels_sorted}
+    for i in range(spec.n):
+        members[spec.clusters[i]].append(i)
+    pos: dict[str, np.ndarray] = {}
+    for lab, idxs in members.items():
+        m = len(idxs)
+        radius = 0.0 if m == 1 else 0.55 + 0.12 * m
+        for k, i in enumerate(idxs):
+            a = 2 * np.pi * k / max(m, 1)
+            pos[spec.node_names[i]] = centres[lab] + radius * np.array([np.cos(a), np.sin(a)])
+
+    fig, ax = plt.subplots(figsize=(11, 7.5))
+    node_colors = [color_of[spec.clusters[i]] for i in range(spec.n)]
+    node_sizes = 550 + 600 * spec.marginal_default_probs / max(
+        spec.marginal_default_probs.max(), 1e-9
+    )
+
+    # For drawing, keep only the heaviest edges so the community structure is legible;
+    # colour an edge by its endpoints' community (grey if it crosses communities).
+    edges = sorted(graph.edges(data=True), key=lambda e: e[2]["weight"], reverse=True)
+    if max_edges is not None:
+        edges = edges[:max_edges]
+    cluster_of = {spec.node_names[i]: spec.clusters[i] for i in range(spec.n)}
+    edge_list = [(u, v) for u, v, _ in edges]
+    weights = np.array([d["weight"] for _, _, d in edges])
+    widths = 0.3 + 2.6 * weights / weights.max() if len(weights) else weights
+    edge_colors = [
+        color_of[cluster_of[u]] if cluster_of[u] == cluster_of[v] else "#9a9a9a"
+        for u, v in edge_list
+    ]
+
+    nx.draw_networkx_edges(graph, pos, ax=ax, edgelist=edge_list, width=widths,
+                           arrowsize=8, alpha=0.30, edge_color=edge_colors)
+    nx.draw_networkx_nodes(graph, pos, ax=ax, node_color=node_colors,
+                           node_size=node_sizes, linewidths=0.8, edgecolors="#1f1f1f")
+    nx.draw_networkx_labels(graph, pos, ax=ax, font_size=7.5)
+
+    handles = [
+        plt.Line2D([0], [0], marker="o", linestyle="", markersize=10,
+                   markerfacecolor=color_of[lab], markeredgecolor="#1f1f1f",
+                   label=str(lab))
+        for lab in labels_sorted
+    ]
+    ax.legend(handles=handles, title="Community", loc="upper left",
+              fontsize=8, title_fontsize=9, framealpha=0.9)
+    ax.set_title(title)
+    ax.axis("off")
+    fig.tight_layout()
+    if path is not None:
+        fig.savefig(path, dpi=180)
+    return fig
+
+
 def plot_financial_network(
     spec: SystemSpec,
     path: str | Path | None = None,
