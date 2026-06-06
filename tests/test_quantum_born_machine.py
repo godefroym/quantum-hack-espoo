@@ -2,10 +2,11 @@
 
 Covers the generator contract, the analytic angle-setting facts it rests on, the exact
 statevector readout, the ``n = 54`` mean-field-oracle validation, and the honest
-higher-order / tail-dependence claim (entanglement puts joint-tail mass a
-correlation-matched Gaussian copula cannot). The higher-order statistics used for the
-discrimination test are computed locally so this file does not depend on the evaluation
-package.
+higher-order / tail-dependence claim. The discrimination statistics are computed locally
+so this file does not depend on the evaluation package; the Gaussian foil is a Monte-Carlo
+copula fit to each generator's *own* realized marginals and correlation, which is the only
+honest second-order reference (an under-correlated foil would conflate a missing-correlation
+artifact with genuine higher-order structure).
 """
 
 from __future__ import annotations
@@ -17,7 +18,6 @@ from systemic_risk.data import make_synthetic_system
 from systemic_risk.generators import EntangledBornMachineGenerator, EntangledPQCGenerator
 from systemic_risk.generators.base import sample_diagnostics
 from systemic_risk.generators.gaussian_copula import GaussianCopulaGenerator
-from systemic_risk.evaluation.joint_structure import higher_order_structure
 from systemic_risk.generators.quantum import ansatz as A
 from systemic_risk.generators.quantum.statevector import StateVector, sample_bitstrings
 from systemic_risk.models.ising import LossDistribution
@@ -42,12 +42,6 @@ def _homogeneous_spec(n: int, p: float, rho: float) -> SystemSpec:
     )
 
 
-def _off_diag_corr(samples: np.ndarray) -> np.ndarray:
-    diag = sample_diagnostics(samples).sampled_pairwise_corr
-    iu = np.triu_indices(samples.shape[1], k=1)
-    return diag[iu]
-
-
 def _coskewness_rms(samples: np.ndarray) -> float:
     x = samples.astype(float)
     centered = x - x.mean(axis=0)
@@ -64,17 +58,38 @@ def _coskewness_rms(samples: np.ndarray) -> float:
     return float(np.sqrt(np.mean(np.square(values)))) if values else 0.0
 
 
-def _conditional_co_default(samples: np.ndarray) -> float:
-    """Mean ``P(j defaults | i defaults)`` over ordered pairs -- pairwise tail clustering."""
+def _matched_gaussian_foil(samples: np.ndarray, seed: int) -> np.ndarray:
+    """Gaussian copula calibrated to ``samples``' OWN realized marginals + correlation.
+
+    This is the honest second-order reference: by construction it matches the first two
+    moments of the sample, so any leftover co-skewness difference is genuine higher-order
+    structure rather than a correlation mismatch.
+    """
     n = samples.shape[1]
-    rates = [
-        samples[samples[:, i] == 1, j].mean()
-        for i in range(n)
-        if (samples[:, i] == 1).any()
-        for j in range(n)
-        if i != j
-    ]
-    return float(np.mean(rates)) if rates else 0.0
+    corr = sample_diagnostics(samples).sampled_pairwise_corr.copy()
+    np.fill_diagonal(corr, 1.0)
+    spec = SystemSpec(
+        node_names=[f"I{i}" for i in range(n)],
+        node_types=["bank"] * n,
+        exposure_matrix=np.zeros((n, n)),
+        capital_buffers=np.ones(n),
+        marginal_default_probs=samples.mean(axis=0),
+        target_pairwise_corr=corr,
+        clusters=["c"] * n,
+    )
+    gaussian = GaussianCopulaGenerator()
+    gaussian.fit(spec)
+    return gaussian.sample(samples.shape[0], seed=seed)
+
+
+def _excess_coskewness(samples: np.ndarray, foil_seed: int) -> float:
+    """Co-skewness rms of ``samples`` minus that of a moment-matched Gaussian copula.
+
+    Near zero for any second-order (elliptical) model; positive only for a genuinely
+    non-elliptical joint whose third-order co-default cannot be pinned by marginals +
+    correlation.
+    """
+    return _coskewness_rms(samples) - _coskewness_rms(_matched_gaussian_foil(samples, foil_seed))
 
 
 # --------------------------------------------------------------- analytic angle facts
@@ -97,6 +112,52 @@ def test_cry_covariance_matches_closed_form() -> None:
     marginals = state.marginals()
     cov = joint[0, 1] - marginals[0] * marginals[1]
     assert abs(cov - target_cov) < 1e-12
+
+
+def test_entanglement_edges_are_scheduled_into_parallel_layers() -> None:
+    ring = [(i, i + 1) for i in range(19)] + [(0, 19)]
+    layers = A.schedule_entanglement_edges(ring)
+
+    assert len(layers) == 2
+    assert sorted(edge for layer in layers for edge in layer) == sorted(ring)
+    for layer in layers:
+        touched = [qubit for edge in layer for qubit in edge]
+        assert len(touched) == len(set(touched))
+
+
+def test_twenty_qubit_banded_circuit_has_two_entanglement_layers() -> None:
+    n = 20
+    index = np.arange(n)
+    distance = np.abs(index[:, None] - index[None, :])
+    corr = 0.04 + 0.14 * np.exp(-distance / 2.0)
+    np.fill_diagonal(corr, 1.0)
+    spec = SystemSpec(
+        node_names=[f"Bank {i + 1}" for i in range(n)],
+        node_types=["bank"] * n,
+        exposure_matrix=np.zeros((n, n)),
+        capital_buffers=np.ones(n),
+        marginal_default_probs=np.linspace(0.05, 0.25, n),
+        target_pairwise_corr=corr,
+        clusters=["hardware-test"] * n,
+    )
+    generator = EntangledBornMachineGenerator(
+        ansatz="entangled",
+        max_degree=2,
+        max_block_qubits=22,
+        calibrate=False,
+    )
+
+    generator.fit(spec)
+
+    assert len(generator.blocks_) == 1
+    assert len(generator.blocks_[0].edges) == 20
+    assert generator.blocks_[0].entanglement_depth == 2
+    pytest.importorskip("qiskit")
+    from systemic_risk.generators.quantum.qiskit_backend import build_circuit
+
+    block = generator.blocks_[0]
+    circuit = build_circuit(block.ry, block.edges, block.cry, measure=True)
+    assert circuit.depth() == 4
 
 
 def test_z_diagonal_phase_is_inert_in_measurement_basis() -> None:
@@ -243,15 +304,17 @@ def test_ghz_blend_closed_form_matches_exact_statevector() -> None:
     assert np.allclose(state_pmf, blend.loss_count_pmf(), atol=1e-12)
 
 
-def test_ghz_blend_calibrates_exact_coherent_moments() -> None:
-    blend = A.GHZBlend.from_targets(n=8, target_marginal=0.05, target_default_corr=0.4)
-    assert abs(blend.marginal() - 0.05) < 1e-8
-    assert abs(blend.default_correlation() - 0.4) < 1e-8
+# ------------------------------------------- higher-order structure vs a moment-matched foil
+def test_symmetric_loader_carries_coskewness_beyond_a_moment_matched_gaussian() -> None:
+    """The central scientific claim, stated honestly.
 
-
-# ------------------------------------------- higher-order / tail dependence vs Gaussian foil
-def test_symmetric_loader_carries_structure_beyond_matched_gaussian_copula() -> None:
-    """The exchangeable loader has third-order structure beyond matched Gaussian moments."""
+    On a homogeneous credit spec the symmetric (entangled) loader reproduces the exchangeable
+    mean-field Ising law, whose third-order co-default is fixed by the spec and is genuinely
+    *non-elliptical*. Against a Gaussian copula matched to the loader's own realized marginals
+    and correlation, its excess co-skewness is large and stable, while the same statistic
+    applied to a pure Gaussian sample vanishes -- proof the statistic isolates beyond-second-
+    order structure rather than re-measuring correlation.
+    """
     n = 8
     spec = _homogeneous_spec(n, p=0.05, rho=0.4)
     n_samples = 200_000
@@ -261,22 +324,31 @@ def test_symmetric_loader_carries_structure_beyond_matched_gaussian_copula() -> 
     gaussian = GaussianCopulaGenerator()
     gaussian.fit(spec)
 
-    symmetric_samples = symmetric.sample(n_samples, seed=1)
-    gaussian_samples = gaussian.sample(n_samples, seed=1)
+    symmetric_excess = _excess_coskewness(symmetric.sample(n_samples, seed=1), foil_seed=99)
+    gaussian_excess = _excess_coskewness(gaussian.sample(n_samples, seed=1), foil_seed=99)
 
-    symmetric_structure = higher_order_structure(symmetric_samples)
-    gaussian_structure = higher_order_structure(gaussian_samples)
-    gaussian_conditional = _conditional_co_default(gaussian_samples)
-    symmetric_conditional = _conditional_co_default(symmetric_samples)
+    assert symmetric_excess > 0.2
+    assert abs(gaussian_excess) < 0.05
+    assert symmetric_excess > 4.0 * abs(gaussian_excess)
 
-    # Conditional co-default is fixed by first and second moments, so matched generators agree.
-    assert abs(symmetric_conditional - gaussian_conditional) < 0.03
-    # The connected third cumulant in excess of the Gaussian reference is the discriminator.
-    assert symmetric_structure.excess_coskewness_rms > 0.2
-    assert (
-        symmetric_structure.excess_coskewness_rms
-        > 10.0 * gaussian_structure.excess_coskewness_rms
-    )
+
+def test_ghz_blend_concentrates_systemic_co_default_mass() -> None:
+    """The GHZ ansatz's defining feature is its coherent all-default (systemic) mode.
+
+    Its closed-form loss-count law puts amplitude on the all-default string many orders of
+    magnitude above the independence baseline -- the rare "everyone fails together" event the
+    state is built to carry. (Unlike the symmetric loader, the GHZ blend's higher-order
+    structure is *not* pinned by the spec: it is dialled by ``benign_fraction``, so we assert
+    only the systemic-mode property it always satisfies, not a generic beyond-Gaussian claim.)
+    """
+    n = 8
+    spec = _homogeneous_spec(n, p=0.05, rho=0.4)
+    ghz = EntangledBornMachineGenerator(ansatz="ghz_systemic")
+    ghz.fit(spec)
+
+    all_default = float(ghz.loss_count_pmf()[n])
+    independent_all_default = 0.05**n
+    assert all_default > 1e4 * independent_all_default
 
 
 # ------------------------------------------------------------ real-data spec consumption

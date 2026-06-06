@@ -1,11 +1,44 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
-from typing import Any, Mapping, Sequence
+from typing import Any, Mapping, Protocol, Sequence, runtime_checkable
 
 import numpy as np
 
 from systemic_risk.spec import SystemSpec
+
+
+@runtime_checkable
+class CascadeOutcome(Protocol):
+    """Shared contract for any contagion result (exposure cascade or fire-sale).
+
+    Evaluation, aggregation, and visualization treat both contagion channels
+    through this interface, so each result type must expose the post-contagion
+    failed set, a per-round trace, and systemic-collapse status. The exact
+    round-zero convention of the trace lists is channel-specific.
+    """
+
+    final_defaults: np.ndarray
+    failure_count: int
+    rounds_to_convergence: int
+    systemic_collapse: bool
+    converged: bool
+    scenario_id: str
+    node_names: tuple[str, ...]
+    new_failures_by_round: list[np.ndarray]
+    states_by_round: list[np.ndarray]
+
+    @property
+    def node_count(self) -> int: ...
+
+    @property
+    def failure_fraction(self) -> float: ...
+
+    @property
+    def cascade_depth(self) -> int: ...
+
+    @property
+    def failed_nodes(self) -> list[str]: ...
 
 
 @dataclass(frozen=True)
@@ -204,11 +237,8 @@ def run_cascade(
     the original simulator; set ``fail_on_equal=True`` for ``loss >= capital``.
     """
     scenario = _resolve_scenario(initial_defaults, spec, exogenous_losses)
-    if not 0 < collapse_threshold <= 1:
-        raise ValueError("collapse_threshold must lie in (0, 1]")
     round_limit = spec.n if max_rounds is None else int(max_rounds)
-    if round_limit <= 0:
-        raise ValueError("max_rounds must be positive")
+    validate_contagion_limits(round_limit, collapse_threshold)
 
     effective_exposure = spec.exposure_matrix * _resolve_lgd(lgd, spec.n)
     cumulative_losses = scenario.exogenous_losses.copy()
@@ -256,7 +286,7 @@ def run_cascade(
         failure_count=failure_count,
         rounds_to_convergence=len(states) - 1,
         states_by_round=states,
-        systemic_collapse=failure_count >= int(np.ceil(collapse_threshold * spec.n)),
+        systemic_collapse=is_systemic_collapse(failure_count, spec.n, collapse_threshold),
         scenario_id=scenario.scenario_id,
         scenario_metadata=dict(scenario.metadata),
         node_names=tuple(spec.node_names),
@@ -344,3 +374,16 @@ def _resolve_lgd(value: float | np.ndarray, n: int) -> np.ndarray:
     if not np.all(np.isfinite(lgd)) or np.any(lgd < 0):
         raise ValueError("lgd must be finite and nonnegative")
     return lgd
+
+
+def validate_contagion_limits(max_rounds: int, collapse_threshold: float) -> None:
+    """Shared guardrails for any contagion engine's run controls."""
+    if max_rounds <= 0:
+        raise ValueError("max_rounds must be positive")
+    if not 0 < collapse_threshold <= 1:
+        raise ValueError("collapse_threshold must lie in (0, 1]")
+
+
+def is_systemic_collapse(failure_count: int, node_count: int, collapse_threshold: float) -> bool:
+    """Whether ``failure_count`` reaches the systemic-collapse share of ``node_count``."""
+    return failure_count >= int(np.ceil(collapse_threshold * node_count))

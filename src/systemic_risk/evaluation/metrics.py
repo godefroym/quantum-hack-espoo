@@ -10,13 +10,13 @@ from systemic_risk.evaluation.joint_structure import (
     tail_dependence,
 )
 from systemic_risk.generators.base import sample_diagnostics
-from systemic_risk.simulator.cascade import CascadeResult
+from systemic_risk.simulator.cascade import CascadeOutcome, CascadeResult
 from systemic_risk.spec import SystemSpec
 
 
 def compute_metrics(
     samples: np.ndarray,
-    cascade_results: list[CascadeResult],
+    cascade_results: list[CascadeOutcome],
     spec: SystemSpec,
     severe_threshold: int,
     *,
@@ -92,7 +92,7 @@ def compute_metrics(
     return metrics
 
 
-def result_summary(result: CascadeResult) -> dict[str, Any]:
+def result_summary(result: CascadeOutcome) -> dict[str, Any]:
     """Compact, JSON-compatible cascade summary for reports and APIs."""
     return {
         "scenario_id": result.scenario_id,
@@ -106,11 +106,11 @@ def result_summary(result: CascadeResult) -> dict[str, Any]:
     }
 
 
-def batch_summary(results: list[CascadeResult]) -> list[dict[str, Any]]:
+def batch_summary(results: list[CascadeOutcome]) -> list[dict[str, Any]]:
     return [result_summary(result) for result in results]
 
 
-def aggregate_results(results: list[CascadeResult]) -> dict[str, float | int]:
+def aggregate_results(results: list[CascadeOutcome]) -> dict[str, float | int]:
     """Aggregate cascade outcomes independently of the scenario generator."""
     if not results:
         return {
@@ -150,7 +150,7 @@ def failure_round_distribution(result: CascadeResult) -> dict[int, int]:
     return {round_index: int(count) for round_index, count in enumerate(counts) if count}
 
 
-def node_failure_frequencies(results: list[CascadeResult]) -> dict[str, float]:
+def node_failure_frequencies(results: list[CascadeOutcome]) -> dict[str, float]:
     """Return each institution's observed failure frequency over a result batch."""
     if not results:
         return {}
@@ -171,7 +171,7 @@ def node_failure_frequencies(results: list[CascadeResult]) -> dict[str, float]:
 
 
 def tail_failure_probability(
-    results: list[CascadeResult],
+    results: list[CascadeOutcome],
     *,
     min_failure_fraction: float,
 ) -> float:

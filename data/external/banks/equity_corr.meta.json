@@ -27,7 +27,17 @@
     "TD",
     "BNS",
     "ITUB",
-    "BBD"
+    "BBD",
+    "AAPL",
+    "MSFT",
+    "XOM",
+    "WMT",
+    "BA",
+    "T",
+    "TM",
+    "VWAGY",
+    "SIEGY",
+    "PBR"
   ],
   "start": "2021-06-01",
   "end": "2024-06-01",

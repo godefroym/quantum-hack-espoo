@@ -5,7 +5,9 @@ import pytest
 
 from systemic_risk.bank_asset_spec import BankAssetSystemSpec
 from systemic_risk.data import HUANG_ASSET_NAMES, make_huang_2008_style_system
+from systemic_risk.evaluation import aggregate_results, batch_summary, result_summary
 from systemic_risk.simulator import (
+    CascadeOutcome,
     huang_failure_probability,
     run_huang_cascade,
     simulate_huang_scenarios,
@@ -150,3 +152,67 @@ def test_larger_price_impact_does_not_reduce_failures() -> None:
     illiquid = run_huang_cascade(spec, shocks, alpha=0.5, eta=0.0)
 
     assert liquid.failure_count <= illiquid.failure_count
+
+
+def test_huang_result_satisfies_shared_cascade_outcome() -> None:
+    result = run_huang_cascade(
+        _two_bank_cascade_spec(),
+        asset_price_shocks={"commercial_real_estate": 0.6},
+        alpha=0.5,
+        eta=0.0,
+    )
+
+    assert isinstance(result, CascadeOutcome)
+    assert np.array_equal(result.final_defaults, result.final_bank_defaults)
+    assert result.node_count == 2
+    assert result.failure_fraction == 1.0
+    assert result.failed_nodes == ["CRE Bank", "Diversified Bank"]
+    assert result.converged
+    assert result.node_names == ("CRE Bank", "Diversified Bank")
+
+
+def test_max_rounds_exhaustion_reports_non_convergence() -> None:
+    result = run_huang_cascade(
+        _two_bank_cascade_spec(),
+        asset_price_shocks={"commercial_real_estate": 0.6},
+        alpha=0.5,
+        eta=0.0,
+        max_rounds=1,
+    )
+
+    assert not result.converged
+    assert result.failure_count == 1
+
+
+def test_simulate_huang_scenarios_assigns_scenario_ids() -> None:
+    results = simulate_huang_scenarios(
+        np.array([[0, 0], [1, 0]]),
+        _two_bank_cascade_spec(),
+        alpha=0.8,
+        eta=0.0,
+        seed=5,
+    )
+
+    assert [result.scenario_id for result in results] == ["0", "1"]
+
+
+def test_shared_aggregation_helpers_consume_huang_results() -> None:
+    results = simulate_huang_scenarios(
+        np.array([[0, 0], [1, 0]]),
+        _two_bank_cascade_spec(),
+        alpha=0.8,
+        eta=0.0,
+        seed=5,
+    )
+
+    aggregate = aggregate_results(results)
+    assert aggregate["num_scenarios"] == 2
+    assert aggregate["max_final_failure_count"] == 2
+    # Only the seeded scenario collapses the system; the quiet one does not.
+    assert aggregate["systemic_collapse_frequency"] == 0.5
+    assert aggregate["convergence_frequency"] == 1.0
+
+    summary = result_summary(results[1])
+    assert summary["failed_nodes"] == ["CRE Bank", "Diversified Bank"]
+    assert summary["systemic_collapse"] is True
+    assert len(batch_summary(results)) == 2

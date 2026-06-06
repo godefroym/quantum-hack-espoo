@@ -1,12 +1,12 @@
-"""Fast MVP benchmark on the REAL-data foundation.
+"""SMOKE TEST — fast MVP benchmark on the real-data foundation.
 
 A lightweight, CI-time entry point that exercises the whole pipeline on the real 28-bank network:
 build the spec, render the community network, run every generator (the classical baselines and the
 entangled Born machine) through the shared cascade engine, and write a comparison CSV plus a
-worst-case crisis card per generator.
+worst-case crisis card per generator. This is also the dashboard feed.
 
-It is the quick smoke test / dashboard feed. For the rigorous, per-criterion head-to-head with the
-higher-order and tail discriminators and the n=54 scale story, run::
+For the CANONICAL end-to-end run — the rigorous per-criterion head-to-head with the higher-order
+and tail discriminators plus the n=54 scale story — use::
 
     uv run python scripts/run_demonstration.py
 """

@@ -162,7 +162,6 @@ def cluster_with_stability(
     )
 
 
-# Re-export for callers that want the itertools-free public surface only.
 __all__ = [
     "detect_communities",
     "adjusted_rand_index",

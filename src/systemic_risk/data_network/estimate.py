@@ -12,70 +12,18 @@ Part A owns the empirical layer:
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import numpy as np
 
 from systemic_risk.data_network.clean import CleanNode
 from systemic_risk.data_network.sources.equity_returns import EquityCorrelation
+from systemic_risk.utils.ratings import RATING_PD_DEFAULT, load_rating_pd
 from systemic_risk.utils.validation import nearest_psd_correlation
-
-_RATING_PD_CSV = (
-    Path(__file__).resolve().parents[3]
-    / "data"
-    / "external"
-    / "ratings"
-    / "moodys_pd_by_rating.csv"
-)
-
-# Moody's whole-letter (Exhibit 17) keys -> our S&P-style whole-letter buckets.
-_MOODYS_TO_BUCKET = {
-    "Aaa": "AAA", "Aa": "AA", "A": "A", "Baa": "BBB",
-    "Ba": "BB", "B": "B", "Caa-C": "CCC",
-}
-
-# Literature-default 1-year PDs if the Moody's CSV is unavailable (research/README.md s.3).
-_RATING_PD_DEFAULT = {
-    "AAA": 0.0001, "AA": 0.0004, "A": 0.0008, "BBB": 0.0025,
-    "BB": 0.0140, "B": 0.0550, "CCC": 0.2200,
-}
-
-
-def load_rating_pd_table() -> tuple[dict[str, float], str]:
-    """Return ``(bucket -> 1-year PD, source)`` preferring the real Moody's table."""
-    table = dict(_RATING_PD_DEFAULT)
-    source = "literature defaults (S&P/Moody's annual default studies)"
-    if not _RATING_PD_CSV.exists():
-        return table, source
-    try:
-        rows: dict[str, float] = {}
-        for line in _RATING_PD_CSV.read_text(encoding="utf-8").splitlines()[1:]:
-            if not line.strip():
-                continue
-            parts = line.split(",", 2)
-            if len(parts) < 3:
-                continue
-            rating, pd_str, src = parts[0].strip(), parts[1], parts[2]
-            if "Exhibit 17" not in src:  # one consistent whole-letter scale
-                continue
-            bucket = _MOODYS_TO_BUCKET.get(rating)
-            if bucket and bucket not in rows:
-                rows[bucket] = float(pd_str)
-        if rows:
-            table.update({k: max(v, 1e-5) for k, v in rows.items()})
-            source = (
-                "Moody's Corporate Default & Recovery Rates 1920-2004, "
-                "Exhibit 17 (whole-letter, Year-1)"
-            )
-    except (OSError, ValueError):
-        return dict(_RATING_PD_DEFAULT), source
-    return table, source
 
 
 def marginals_from_ratings(nodes: tuple[CleanNode, ...]) -> tuple[np.ndarray, str]:
     """Map each node's rating bucket to its 1-year PD. Returns ``(p, pd_source)``."""
-    table, source = load_rating_pd_table()
-    p = np.array([table.get(node.rating_bucket, _RATING_PD_DEFAULT["BBB"]) for node in nodes],
+    table, source = load_rating_pd()
+    p = np.array([table.get(node.rating_bucket, RATING_PD_DEFAULT["BBB"]) for node in nodes],
                  dtype=float)
     return np.clip(p, 1e-5, 1.0 - 1e-9), source
 
@@ -94,20 +42,30 @@ def correlation_from_equity(
 
 
 def interbank_totals(
-    nodes: tuple[CleanNode, ...], interbank_share: float = 0.20
+    nodes: tuple[CleanNode, ...],
+    interbank_share: float = 0.20,
+    corporate_borrow_share: float = 0.30,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Interbank asset (row) and liability (col) totals from total assets.
+    """Asset (row) and liability (col) totals from total assets, by node class.
 
-    Each node's interbank assets are ``interbank_share`` of its total assets (Gai-Kapadia /
-    Basel: interbank ~20% of the balance sheet). Liabilities are set to the same per-node
-    scale and then rescaled so the system asset total equals the liability total (required
-    for a feasible bilateral reconstruction).
+    - **Financial** nodes (bank/insurer/fund/sovereign/CCP) both lend and borrow in the
+      interbank market: assets = liabilities = ``interbank_share`` of total assets
+      (Gai-Kapadia / Basel: interbank ~20% of the balance sheet).
+    - **Corporates** borrow from banks but do not lend to them, so their interbank *assets*
+      are ~0 and their *liabilities* are ``corporate_borrow_share`` of total assets (bank
+      loans / bonds owed). This creates directed bank -> corporate exposures: a bank loses if
+      a corporate it lent to defaults, but corporates are not creditors of the system.
+
+    Liabilities are finally rescaled so the system asset total equals the liability total
+    (required for a feasible bilateral reconstruction): the banks' lending capacity is shared
+    across both interbank and corporate borrowers.
     """
     ta = np.array([node.total_assets_usd_bn for node in nodes], dtype=float)
-    assets = interbank_share * ta
-    liabilities = interbank_share * ta
+    is_corp = np.array([node.node_type == "corporate" for node in nodes])
+    assets = np.where(is_corp, 0.0, interbank_share * ta)
+    liabilities = np.where(is_corp, corporate_borrow_share * ta, interbank_share * ta)
     total = assets.sum()
-    if liabilities.sum() > 0:
+    if liabilities.sum() > 0 and total > 0:
         liabilities = liabilities * (total / liabilities.sum())
     return assets, liabilities
 

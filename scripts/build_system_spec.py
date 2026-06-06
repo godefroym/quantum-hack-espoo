@@ -1,4 +1,4 @@
-"""Build a SystemSpec for parts B/C/D, end-to-end (Part A deliverable + entrypoint).
+"""SECONDARY (Part A data builder) — build a SystemSpec for parts B/C/D, end-to-end.
 
 WHAT THIS PRODUCES
 ------------------
@@ -50,7 +50,6 @@ os.environ.setdefault("MPLCONFIGDIR", str(MPL_CACHE))
 os.environ.setdefault("XDG_CACHE_HOME", str(XDG_CACHE))
 sys.path.insert(0, str(ROOT / "src"))
 
-import numpy as np
 
 from systemic_risk.data_network.assemble import build_network_spec
 from systemic_risk.data_network.sources.synthetic import synthetic_network_spec

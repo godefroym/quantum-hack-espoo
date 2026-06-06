@@ -25,9 +25,9 @@ data/external/
 │   └── VIXCLS.csv               (CBOE VIX, daily)
 ├── ecb/
 │   └── ciss_euro_area.csv        (ECB CISS systemic-stress index, daily since 1980)
-├── banks/            # real bank-network anchor (part A) -> nodes + p_i + J_ij + correlation
-│   ├── gsib_roster.csv           (28 real G-SIB/large banks: ratings, total assets, region)
-│   ├── equity_corr.csv           (28x28 daily equity-return correlation matrix, 755 obs)
+├── banks/            # real network anchor (part A) -> nodes + p_i + J_ij + correlation
+│   ├── gsib_roster.csv           (38 entities: 28 banks + 10 corporates; node_type, ratings, assets)
+│   ├── equity_corr.csv           (38x38 daily equity-return correlation matrix, 755 obs)
 │   └── equity_corr.meta.json     (tickers, window, obs count, source)
 ├── ratings/           # rating-agency PDs -> p_i
 │   ├── moodys_pd_by_rating.csv   (1-yr PD by rating; Moody's Exhibits 17 & 19)

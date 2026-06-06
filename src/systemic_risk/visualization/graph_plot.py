@@ -47,7 +47,7 @@ def plot_community_network(
     spec: SystemSpec,
     path: str | Path | None = None,
     seed: int = 11,
-    title: str = "Bank Exposure Network — Detected Communities",
+    title: str = "Financial System Exposure Network — Detected Communities",
     max_edges: int | None = 90,
 ) -> plt.Figure:
     """Render the network coloured by detected community, with a community-aware layout.
@@ -58,8 +58,8 @@ def plot_community_network(
     story obvious. Falls back to type-colouring if no clusters are attached.
 
     ``max_edges`` keeps only that many heaviest exposures for drawing (dense max-entropy
-    reconstructions are near-complete graphs and would otherwise render as a hairball); the
-    layout still uses the full weighted graph. Set to ``None`` to draw every edge.
+    reconstructions are near-complete graphs and would otherwise render as a hairball). Set to
+    ``None`` to draw every edge.
     """
     if spec.clusters is None:
         return plot_financial_network(spec, path=path, seed=seed)
@@ -69,9 +69,9 @@ def plot_community_network(
     color_of = {lab: _COMMUNITY_PALETTE[i % len(_COMMUNITY_PALETTE)]
                 for i, lab in enumerate(labels_sorted)}
 
-    # Community-aware layout: well-separated community centres on a circle, members ringed
-    # around their own centre. Deterministic (no spring relaxation that would collapse the
-    # heavy central hub of a dense max-entropy graph back into a single blob).
+    # Community-aware layout computed directly from spec.clusters (not a spring relaxation):
+    # well-separated community centres on a circle, members ringed around their own centre.
+    # Deterministic, so a dense max-entropy graph's heavy central hub never collapses to a blob.
     n_comm = len(labels_sorted)
     centre_angles = np.linspace(0, 2 * np.pi, n_comm, endpoint=False)
     centres = {
@@ -111,18 +111,44 @@ def plot_community_network(
 
     nx.draw_networkx_edges(graph, pos, ax=ax, edgelist=edge_list, width=widths,
                            arrowsize=8, alpha=0.30, edge_color=edge_colors)
-    nx.draw_networkx_nodes(graph, pos, ax=ax, node_color=node_colors,
-                           node_size=node_sizes, linewidths=0.8, edgecolors="#1f1f1f")
+
+    # Node colour = community; node shape = class (circle = financial, square = corporate),
+    # so the non-financial companies are visually distinct from the banks/insurers/funds.
+    is_corp = [t == "corporate" for t in spec.node_types]
+    for shape, want_corp in (("o", False), ("s", True)):
+        idxs = [i for i in range(spec.n) if is_corp[i] == want_corp]
+        if not idxs:
+            continue
+        nx.draw_networkx_nodes(
+            graph, pos, ax=ax,
+            nodelist=[spec.node_names[i] for i in idxs],
+            node_color=[node_colors[i] for i in idxs],
+            node_size=[node_sizes[i] for i in idxs],
+            node_shape=shape, linewidths=0.8, edgecolors="#1f1f1f",
+        )
     nx.draw_networkx_labels(graph, pos, ax=ax, font_size=7.5)
 
-    handles = [
+    community_handles = [
         plt.Line2D([0], [0], marker="o", linestyle="", markersize=10,
                    markerfacecolor=color_of[lab], markeredgecolor="#1f1f1f",
                    label=str(lab))
         for lab in labels_sorted
     ]
-    ax.legend(handles=handles, title="Community", loc="upper left",
-              fontsize=8, title_fontsize=9, framealpha=0.9)
+    community_legend = ax.legend(handles=community_handles, title="Community",
+                                 loc="upper left", fontsize=8, title_fontsize=9,
+                                 framealpha=0.9)
+    ax.add_artist(community_legend)
+    if any(is_corp):
+        class_handles = [
+            plt.Line2D([0], [0], marker="o", linestyle="", markersize=10,
+                       markerfacecolor="#bbbbbb", markeredgecolor="#1f1f1f",
+                       label="financial"),
+            plt.Line2D([0], [0], marker="s", linestyle="", markersize=10,
+                       markerfacecolor="#bbbbbb", markeredgecolor="#1f1f1f",
+                       label="corporate"),
+        ]
+        ax.legend(handles=class_handles, title="Node class", loc="upper right",
+                  fontsize=8, title_fontsize=9, framealpha=0.9)
     ax.set_title(title)
     ax.axis("off")
     fig.tight_layout()

@@ -17,11 +17,11 @@ dependencies = [
 
 [project.optional-dependencies]
 app = [
-    "plotly>=5.20",
     "streamlit>=1.32",
 ]
 quantum = [
     "qiskit>=2.4",
+    "qiskit-aer>=0.17",
     "qiskit-ibm-runtime>=0.46",
 ]
 

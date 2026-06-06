@@ -1,39 +1,20 @@
 """Assemble the layers into a validated ``NetworkSpec`` (and the flat ``SystemSpec``).
 
-This is the end-to-end real pipeline:
+The end-to-end real pipeline::
 
     roster -> clean -> estimate (marginals, correlation, totals, buffers)
            -> reconstruct (bilateral exposures) -> cluster -> NetworkSpec
 
 The returned ``NetworkSpec`` is frozen, carries provenance with a content hash, and emits
-the flat ``SystemSpec`` that parts B/C/D consume via ``.to_system_spec()``.
-
-Entrypoints for B/C/D
----------------------
-B (copula baseline), C (entangled generator) and D (cascade simulator) all consume the flat
-:class:`systemic_risk.spec.SystemSpec`. The two one-call entrypoints below return exactly
-that — drop-in for the synthetic ``make_synthetic_system`` / ``make_scalable_system`` they
-already use::
-
-    from systemic_risk.data_network import build_system_spec, build_synthetic_system_spec
-
-    spec = build_system_spec()                 # the REAL 28-bank network
-    spec = build_synthetic_system_spec(n=54)   # calibrated-synthetic, scales to 54 qubits
-
-    # ... then exactly as today:
-    gen = GaussianCopulaGenerator(); gen.fit(spec); samples = gen.sample(2000)
-    cascades = simulate_many(samples, spec)
-
-Both are deterministic (the real build is snapshot-backed; the synthetic build is seeded), so
-re-running gives an identical spec. To avoid rebuilding every process, build once and cache to
-disk with ``scripts/build_system_spec.py`` then ``SystemSpec.load_json(...)``.
+the flat ``SystemSpec`` that the generators / simulator / evaluation consume via
+``.to_system_spec()``. The two one-call entrypoints :func:`build_system_spec` (real network)
+and :func:`build_synthetic_system_spec` (calibrated-synthetic, scales to n=54) return that
+flat spec directly. Both are deterministic, so re-running gives an identical spec.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
-
-import numpy as np
 
 from systemic_risk.data_network import clean as clean_mod
 from systemic_risk.data_network import estimate as estimate_mod
@@ -46,7 +27,9 @@ from systemic_risk.data_network.spec import (
     FeatureSchema,
     NetworkSpec,
     Provenance,
+    ReconstructedLayer,
 )
+from systemic_risk.edge_metrics import EdgeMetricConfig, compute_edge_metrics
 from systemic_risk.spec import SystemSpec
 
 
@@ -106,13 +89,36 @@ def build_network_spec(
     )
 
     # --- reconstructed layer ---------------------------------------------- #
+    # 1) reconstruct the gross *notional* bilateral matrix (cap on notional = regulatory
+    #    large-exposure limit); 2) risk-adjust each directed edge into an effective-loss
+    #    matrix via the shared edge-metrics module (LGD/recovery, maturity/rollover,
+    #    wrong-way, substitutability). The cascade consumes the effective matrix.
     cap = single_counterparty_cap_frac * buffers
-    reconstructed = reconstruct_mod.reconstruct(
+    notional_layer = reconstruct_mod.reconstruct(
         reconstruction_method,
         assets,
         liabilities,
         single_counterparty_cap=cap,
         record={"single_counterparty_cap_frac": single_counterparty_cap_frac},
+    )
+    notional = notional_layer.edge_matrix
+    edge_cfg = EdgeMetricConfig()
+    edge = compute_edge_metrics(
+        notional,
+        [node.node_type for node in nodes],
+        ratings=[node.sp_rating for node in nodes],
+        correlation=corr,
+        config=edge_cfg,
+    )
+    reconstructed = ReconstructedLayer(
+        edge_matrix=edge.effective,
+        method=f"{reconstruction_method}+risk_adjusted",
+        method_params={
+            **dict(notional_layer.method_params),
+            **edge_cfg.to_summary(),
+            "exposure_is": "effective_loss",
+            "edge_channels": "lgd_recovery|maturity_rollover|wrong_way|substitutability",
+        },
     )
 
     # --- communities ------------------------------------------------------- #
@@ -121,9 +127,12 @@ def build_network_spec(
     )
     clusters = tuple(int(c) for c in report.labels)
 
+    n_corporate = sum(node.node_type == "corporate" for node in nodes)
+    eff_ratio = (float(edge.effective.sum() / notional.sum())
+                 if notional.sum() > 0 else None)
     provenance = Provenance(
         source=(
-            "Real anchor: G-SIB / large-bank roster "
+            "Real anchor: roster of large banks + non-financial corporates "
             "(data/external/banks/gsib_roster.csv). "
             f"Marginals: {pd_source}. Correlation: {ec.source}."
         ),
@@ -135,6 +144,8 @@ def build_network_spec(
             "cluster_threshold": cluster_threshold,
             "correlation_space": "latent_gaussian",
             "n_nodes": len(node_ids),
+            "n_corporates": int(n_corporate),
+            "n_financials": int(len(node_ids) - n_corporate),
             "n_communities": report.n_communities,
             "modularity": round(report.modularity, 4),
             "cluster_mean_ari": round(report.mean_ari, 4),
@@ -142,10 +153,15 @@ def build_network_spec(
             "cluster_stable": bool(report.stable),
             "equity_window": f"{ec.start}..{ec.end}",
             "equity_n_obs": ec.n_obs,
+            "edge_channels": "lgd_recovery|maturity_rollover|wrong_way|substitutability",
+            "effective_to_notional_ratio": round(eff_ratio, 4) if eff_ratio else None,
+            **edge_cfg.to_summary(),
         },
         notes=(
-            "Bilateral exposures are reconstructed (real bilateral data is confidential); "
-            "marginals and equity correlation are empirical."
+            "Bilateral exposures are reconstructed (real bilateral data is confidential) and "
+            "risk-adjusted into an effective-loss matrix (LGD/maturity/wrong-way/"
+            "substitutability); marginals and equity correlation are empirical. Corporates "
+            "borrow from banks but do not lend interbank (directed bank->corporate edges)."
         ),
     )
 
@@ -160,24 +176,18 @@ def build_network_spec(
 
 
 def build_system_spec(roster_path: str | Path | None = None, **kwargs) -> SystemSpec:
-    """B/C/D entrypoint — build the REAL bank network and return the flat ``SystemSpec``.
+    """Build the real bank network and return the flat ``SystemSpec``.
 
-    One call returns a validated ``SystemSpec`` (node names/types, exposure matrix, capital
-    buffers, marginal default probs, target pairwise correlation, community labels, and a
-    provenance/feature-schema-bearing ``metadata`` dict). ``**kwargs`` forwards to
-    :func:`build_network_spec` (e.g. ``reconstruction_method="min_density"``).
+    ``**kwargs`` forwards to :func:`build_network_spec` (e.g.
+    ``reconstruction_method="min_density"``).
     """
     return build_network_spec(roster_path, **kwargs).to_system_spec()
 
 
 def build_synthetic_system_spec(n: int = 54, seed: int = 11) -> SystemSpec:
-    """B/C/D entrypoint — calibrated-synthetic network as a flat ``SystemSpec``.
-
-    Use this to scale beyond the fixed real roster (up to the ``n = 54`` quantum-hardware
-    target) while keeping the same layered provenance. Deterministic given ``(n, seed)``.
-    """
-    # Imported lazily: the synthetic source imports systemic_risk.data, and importing it at
-    # module load would create an import cycle through the data package.
+    """Calibrated-synthetic network as a flat ``SystemSpec``; scales to ``n = 54``."""
+    # Lazy import: the synthetic source imports systemic_risk.data, which would cycle
+    # through the data package if imported at module load.
     from systemic_risk.data_network.sources.synthetic import synthetic_network_spec
 
     return synthetic_network_spec(n=n, seed=seed).to_system_spec()

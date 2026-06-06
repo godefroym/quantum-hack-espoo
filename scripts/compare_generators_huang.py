@@ -1,3 +1,17 @@
+"""SECONDARY entry point — Gaussian vs entangled generator under the Huang fire-sale channel.
+
+Specialized companion to the primary cascade benchmark: instead of the fixed-point exposure
+cascade, it runs both generators' scenarios through the Huang overlapping-portfolio / price-impact
+engine and compares moment calibration and the cascade-size tail. See ``docs/huang_simulation.md``.
+
+For the canonical end-to-end run use ``scripts/run_demonstration.py``; for the fast smoke test use
+``scripts/run_mvp.py``.
+
+Run:
+    uv run python scripts/compare_generators_huang.py
+Outputs land in ``outputs/huang_generator_comparison/``.
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -23,7 +37,7 @@ from systemic_risk.data import (
     bank_asset_to_system_spec,
     make_huang_2008_style_system,
 )
-from systemic_risk.generators import EntangledBornMachineGenerator, GaussianCopulaGenerator
+from systemic_risk.generators import EntangledPQCGenerator, GaussianCopulaGenerator
 from systemic_risk.generators.moments import (
     empirical_moments,
     moment_errors,
@@ -70,19 +84,9 @@ def main() -> None:
     targets = targets_from_spec(generator_spec)
 
     gaussian = GaussianCopulaGenerator()
-    entangled = EntangledBornMachineGenerator(ansatz="entangled", backend="statevector")
+    entangled = EntangledPQCGenerator(ansatz="entangled", calibrate=True)
     gaussian.fit(generator_spec)
-    entangled.fit(generator_spec)
-    fit_diag = entangled.diagnostics_summary()
-    training_history = [
-        {
-            "backend": fit_diag.backend,
-            "n_qubits": fit_diag.n_qubits,
-            "n_edges": fit_diag.n_edges,
-            "n_blocks": fit_diag.n_blocks,
-            "max_block_size": fit_diag.max_block_size,
-        }
-    ]
+    entangled.fit(generator_spec)  # angles set analytically + light calibration; no training loop
 
     generators = [
         ("Gaussian copula (B)", gaussian),
@@ -141,10 +145,6 @@ def main() -> None:
         entangled_samples=sample_sets["Entangled generator (C)"],
         entangled_failures=failure_counts["Entangled generator (C)"],
     )
-    pd.DataFrame(training_history).to_csv(
-        args.output_dir / "entangled_training_history.csv",
-        index=False,
-    )
     _plot_comparison(
         args.output_dir / "generator_huang_comparison.png",
         targets,
@@ -158,8 +158,9 @@ def main() -> None:
     print(summary.to_string(index=False, float_format=lambda value: f"{value:.5f}"))
     print()
     print(f"C backend: {entangled.backend_used_}")
-    if entangled.backend_used_ != "ibm_runtime":
-        print("Important: C is an exact classical emulation of the circuit, not a hardware result.")
+    if entangled.backend_used_ != "qiskit":
+        print("Note: C ran on the exact-statevector backend (classical simulation of the "
+              "Born machine), not quantum hardware. Use --extra quantum for the Qiskit backend.")
     print(f"Outputs: {args.output_dir}")
 
 

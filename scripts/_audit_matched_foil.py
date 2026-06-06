@@ -1,4 +1,4 @@
-"""Adversarial confound test for criteria 2 & 3.
+"""INTERNAL audit (not a primary entry point) — adversarial confound test for criteria 2 & 3.
 
 The headline demonstration feeds the same canonical spec to the entangled generator and Gaussian
 copula, but their realized binary correlations can still differ because the heterogeneous

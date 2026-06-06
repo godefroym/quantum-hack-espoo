@@ -1,4 +1,9 @@
-"""End-to-end demonstration of the quantum systemic-stress thesis on the real-data foundation.
+"""CANONICAL end-to-end demonstration of the quantum systemic-stress thesis (real-data foundation).
+
+This is the headline run. ``scripts/run_mvp.py`` is the fast smoke-test subset of it; the other
+scripts are specialized (``build_system_spec.py`` rebuilds the Part-A data layer,
+``run_scaling_experiment.py`` is the size/scale study, and the ``*huang*`` scripts cover the
+optional fire-sale channel).
 
 Wires every part of the project into one honest, runnable pipeline and renders an explicit
 verdict on each of the three success criteria, with numbers:

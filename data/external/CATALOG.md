@@ -116,25 +116,29 @@ All sources are free / public. Licenses recorded per row. URLs verified during t
 ### `ratings/Moodys_Default_1920-2004.pdf` — source PDF ✅
 - The full study (1.9 MB) retained for provenance/audit of the extracted table above. **License:** free PDF mirror.
 
-### `banks/gsib_roster.csv` — Real bank-network anchor roster ✅
-- **Contents:** curated roster of 28 real, publicly listed systemically important / large banks.
-  Columns: `bank_id, name, ticker, country, region, business_type, sp_rating,
-  total_assets_usd_bn, source`. Regions span US, UK, EU, CH, JP, CA, LATAM; business types
-  universal / investment / regional / custodian.
-- **Granularity:** one row per institution (node-level). **The real anchor for part A** —
-  the nodes of the exposure network.
-- **Format:** CSV. **License:** the roster is an original compilation of public facts (issuer
-  ratings, reported total assets); free to use with attribution.
+### `banks/gsib_roster.csv` — Real network anchor roster (banks + corporates) ✅
+- **Contents:** curated roster of 38 real, publicly listed entities — **28 G-SIB / large banks
+  and 10 non-financial corporates** (Apple, Microsoft, ExxonMobil, Walmart, Boeing, AT&T,
+  Toyota, Volkswagen, Siemens, Petrobras). Columns: `bank_id, name, ticker, country, region,
+  node_type, business_type, sp_rating, total_assets_usd_bn, source`. `node_type` is the
+  SystemSpec class (`bank` | `corporate`); regions span US, UK, EU, CH, JP, CA, LATAM.
+- **Granularity:** one row per entity (node-level). **The real anchor for part A** — the nodes
+  of the exposure network. Banks both lend and borrow interbank; corporates **borrow** from
+  banks but do not lend (directed bank → corporate edges).
+- **Format:** CSV. **License:** an original compilation of public facts (issuer ratings,
+  reported total assets); free to use with attribution.
 - **Sources:** public S&P long-term issuer ratings and FY2023 reported total assets (each row
   cites its `source`). Total-assets figures are **approximate** (rounded ~$10bn) and used only
   as a *relative balance-sheet scale* for the exposure reconstruction — not as marginals.
-- **Maps to:** **nodes** (institutions) · **`p_i`** (rating → 1-yr PD via `ratings/moodys_pd_by_rating.csv`,
-  Exhibit 17) · **`J_ij` constraints** (total assets × ~20% interbank share → per-node interbank
-  asset/liability totals that drive the bilateral reconstruction).
+- **Maps to:** **nodes** · **`p_i`** (rating → 1-yr PD via `ratings/moodys_pd_by_rating.csv`,
+  Exhibit 17) · **`J_ij` constraints** (total assets × interbank/borrowing share → per-node
+  asset/liability totals that drive the bilateral reconstruction, then risk-adjusted into an
+  effective-loss matrix by `src/systemic_risk/edge_metrics.py`).
 
 ### `banks/equity_corr.csv` (+ `equity_corr.meta.json`) — Real equity-return correlation ✅
-- **Contents:** the 28×28 ticker-labelled Pearson correlation matrix of **daily equity
-  log-returns** for the roster banks; sidecar JSON records tickers, window, obs count, source.
+- **Contents:** the 38×38 ticker-labelled Pearson correlation matrix of **daily equity
+  log-returns** for all roster entities (banks + corporates); sidecar JSON records tickers,
+  window, obs count, source.
 - **Window:** 2021-06-01 → 2024-06-01, **755 trading days** (committed snapshot; reproducible).
 - **Format:** CSV (header = tickers) + JSON metadata. **License:** derived statistic computed
   from public Yahoo Finance daily adjusted closes; the matrix itself is free to use.
@@ -151,6 +155,27 @@ All sources are free / public. Licenses recorded per row. URLs verified during t
 ---
 
 ## Documented-only (verified URL/method; not committed) 📝
+
+### EDGAR-Parsing 13F holdings (`holdings_13f/`) 📝 — common-asset / fire-sale channel
+- **Wanted:** validated SEC Form 13F institutional holdings (1999–2020) to build the
+  **portfolio-overlap network** (two institutions linked when they hold the same securities →
+  fire-sale spillovers). The real-data counterpart of the fire-sale layer omitted from
+  `src/systemic_risk/edge_metrics.py`.
+- **Files:** `holdings.csv` (CIK, CUSIP, value, shares — the institution×asset matrix;
+  **essential**), `biographical.csv` (manager↔CIK identities), `crspq.csv` (CRSP
+  prices/volume/market-cap → per-asset illiquidity for the fire-sale weighting). Skip the raw
+  parsing intermediates.
+- **Why not committed:** multi-GB bulk on Dropbox (not a fetch-only endpoint); download a few
+  quarters as needed. Parsed by `data_network/sources/holdings_13f.py`, which runs/tests
+  offline against a synthetic panel until the files are present.
+- **Format:** CSV. **License:** open-source re-parse of public SEC EDGAR filings (CRSP slice
+  is for validation). **Source:** https://elsaifym.github.io/EDGAR-Parsing/ (GitHub:
+  elsaifym/EDGAR-Parsing).
+- **Method:** Gualdi, Cimini, Primicerio, Di Clemente & Challet 2016, *Statistically validated
+  network of portfolio overlaps and systemic risk* (arXiv:1603.05914) — hypergeometric
+  statistically-validated overlap; Greenwood-Landier-Thesmar 2015 for the liquidity-weighted
+  fire-sale loss. See `data/external/holdings_13f/README.md`.
+- **Maps to:** a **common-asset overlap / fire-sale `J_ij`** layer (institutions = 13F filers).
 
 ### `vlab/srisk.csv` — NYU Stern V-Lab SRISK rankings 📝 (stub written, no rows)
 - **Wanted:** firm, SRISK%, LRMES, leverage (LVG) — firm-level, weekly.
@@ -223,8 +248,8 @@ All sources are free / public. Licenses recorded per row. URLs verified during t
 
 | Dataset | Status | Model parameter |
 |---|---|---|
-| `banks/gsib_roster.csv` (28 real banks) | ✅ | **nodes** + **`p_i`** (via ratings) + **`J_ij`** constraints |
-| `banks/equity_corr.csv` (755 obs) | ✅ | **correlation_matrix** (clustering + copula latent corr) |
+| `banks/gsib_roster.csv` (28 banks + 10 corporates) | ✅ | **nodes** + **`p_i`** (via ratings) + **`J_ij`** constraints |
+| `banks/equity_corr.csv` (38 tickers, 755 obs) | ✅ | **correlation_matrix** (clustering + copula latent corr) |
 | `fdic/failures.csv` (2000–2024) | ✅ | **events** |
 | `fdic/failures_1980_2024.csv` | ✅ | **events** (S&L + GFC clusters) |
 | `ratings/moodys_pd_by_rating.csv` | ✅ | **`p_i`** |

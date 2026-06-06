@@ -48,6 +48,10 @@ def whole_letter(rating: str) -> str:
     return "BBB"
 
 
+# SystemSpec node classes the roster may carry.
+_VALID_NODE_TYPES = {"bank", "insurer", "fund", "corporate", "sovereign", "CCP"}
+
+
 @dataclass(frozen=True)
 class CleanNode:
     """A reconciled institution record, indexed by position in the spec."""
@@ -58,7 +62,7 @@ class CleanNode:
     country: str
     region: str
     business_type: str
-    node_type: str          # the SystemSpec class — all roster members are "bank"
+    node_type: str          # the SystemSpec class: "bank", "corporate", ...
     sp_rating: str
     rating_bucket: str      # whole-letter PD key
     total_assets_usd_bn: float
@@ -74,6 +78,7 @@ def reconcile(rows: tuple[RosterRow, ...]) -> tuple[CleanNode, ...]:
             raise ValueError(f"duplicate node id after reconciliation: {node_id}")
         seen.add(node_id)
         sp = normalize_sp_rating(row.sp_rating)
+        node_type = row.node_type if row.node_type in _VALID_NODE_TYPES else "bank"
         nodes.append(
             CleanNode(
                 node_id=node_id,
@@ -82,7 +87,7 @@ def reconcile(rows: tuple[RosterRow, ...]) -> tuple[CleanNode, ...]:
                 country=row.country,
                 region=row.region,
                 business_type=row.business_type,
-                node_type="bank",
+                node_type=node_type,
                 sp_rating=sp,
                 rating_bucket=whole_letter(sp),
                 total_assets_usd_bn=row.total_assets_usd_bn,

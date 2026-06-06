@@ -30,8 +30,11 @@ statevector, see ``tests/test_quantum_born_machine.py``):
   the correlations here are genuine amplitude structure across basis strings.
 * **Systemic tail.** A GHZ-style superposition of two homogeneous product states
   ``sqrt(w)|A>^{(x)n} + sqrt(1-w)|B>^{(x)n}`` places coherent amplitude on the
-  high-Hamming-weight "everyone defaults" strings; that joint-tail mass is
-  entanglement a correlation-matched Gaussian copula cannot reproduce.
+  high-Hamming-weight "everyone defaults" strings, concentrating co-default mass far
+  above the independence baseline -- a rare common-shock mode. (Its *higher-order*
+  structure is tunable via the benign/systemic split rather than pinned by the spec, so
+  the robust beyond-second-order claim is carried by the homogeneous symmetric loader; see
+  :class:`SymmetricIsingLoader` and ``tests/test_quantum_born_machine.py``.)
 """
 
 from __future__ import annotations
@@ -118,6 +121,35 @@ def dependency_edges(
     return edges
 
 
+def schedule_entanglement_edges(
+    edges: list[tuple[int, int]],
+) -> list[list[tuple[int, int]]]:
+    """Group entanglers into collision-free layers while preserving priority order.
+
+    Edges are considered in their existing strongest-first order and placed in the earliest
+    layer whose qubits are both free. Flattening the result before circuit construction lets
+    Qiskit execute each layer in parallel instead of inheriting an unnecessarily serial edge
+    order.
+    """
+    layers: list[list[tuple[int, int]]] = []
+    used_qubits: list[set[int]] = []
+    for edge in edges:
+        source, target = edge
+        if source == target:
+            raise ValueError("entanglement edges must connect distinct qubits")
+
+        for layer, used in zip(layers, used_qubits):
+            if source in used or target in used:
+                continue
+            layer.append(edge)
+            used.update(edge)
+            break
+        else:
+            layers.append([edge])
+            used_qubits.append(set(edge))
+    return layers
+
+
 @dataclass
 class EntangledCircuit:
     """Analytic angles for one block of the hardware-efficient (RY + CRY) ansatz.
@@ -138,6 +170,16 @@ class EntangledCircuit:
     @property
     def size(self) -> int:
         return len(self.qubits)
+
+    @property
+    def entanglement_depth(self) -> int:
+        """Two-qubit depth implied by the circuit's current entangler order."""
+        qubit_depth = np.zeros(self.size, dtype=int)
+        for source, target in self.edges:
+            layer = max(qubit_depth[source], qubit_depth[target]) + 1
+            qubit_depth[source] = layer
+            qubit_depth[target] = layer
+        return int(qubit_depth.max(initial=0))
 
 
 def _block_circuit(
@@ -231,9 +273,15 @@ def partition_blocks(
     """Group qubits into connected components of the entangler graph (capped at ``max_block``).
 
     Components small enough to simulate directly are kept whole; an oversize component is split
-    into ``<= max_block`` chunks (rare -- the within-cluster graph already keeps blocks small).
-    Disconnected qubits become singleton blocks (pure ``RY``, exact).
+    into ``<= max_block`` pieces. The split is **edge-weight aware** (recursive Kernighan-Lin
+    bisection on the entangler weights via
+    :func:`systemic_risk.generators.quantum.budget_clustering.split_oversize_group`), so the cut
+    falls on the *weakest* within-component links instead of an arbitrary index boundary -- the
+    strongly-coupled qubits stay in the same block. Disconnected qubits become singleton blocks
+    (pure ``RY``, exact).
     """
+    from systemic_risk.generators.quantum.budget_clustering import split_oversize_group
+
     parent = list(range(spec.n))
 
     def find(a: int) -> int:
@@ -249,10 +297,24 @@ def partition_blocks(
     for q in range(spec.n):
         groups.setdefault(find(q), []).append(q)
 
+    # Edge weights for the weight-aware splitter: the dependency magnitude on each entangler
+    # (correlation, exposure fallback) so the cut minimises severed dependency. Falls back to
+    # the connectivity graph if the dependency matrix is empty.
+    dependency = np.abs(spec.dependency_matrix())
+    if dependency.max() <= 0.0 and float(np.sum(spec.exposure_matrix)) > 0.0:
+        exposure = spec.exposure_matrix + spec.exposure_matrix.T
+        dependency = exposure / exposure.max()
+    weights = np.zeros((spec.n, spec.n), dtype=float)
+    for i, j in edges:
+        w = float(dependency[i, j]) if dependency[i, j] > 0.0 else 1.0
+        weights[i, j] = weights[j, i] = w
+
     blocks: list[list[int]] = []
     for members in groups.values():
-        for start in range(0, len(members), max_block):
-            blocks.append(members[start : start + max_block])
+        if len(members) <= max_block:
+            blocks.append(members)
+        else:
+            blocks.extend(split_oversize_group(weights, members, max_block))
     return blocks
 
 
@@ -332,8 +394,10 @@ class GHZBlend:
     product state (each institution defaults with prob ``benign``) and a systemic one (prob
     ``systemic``). The coherent superposition is genuine entanglement: it concentrates
     amplitude on the all-survive and all-default strings, so the number-of-defaults law is the
-    closed form below -- exact at *any* ``n``, including 54 -- and carries lower-tail
-    dependence no second-order (Gaussian-copula) model can.
+    closed form below -- exact at *any* ``n``, including 54. The all-default mode sits many
+    orders of magnitude above the independence baseline; the size of the resulting
+    higher-order structure is set by the benign/systemic split (``benign_fraction``), not
+    fixed by the spec's marginal and correlation alone.
     """
 
     n: int

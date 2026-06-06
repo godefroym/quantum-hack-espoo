@@ -12,16 +12,24 @@ sources/  ->  clean  ->  estimate  ->  reconstruct  ->  cluster  ->  assemble  -
 
 | Module | Role |
 |---|---|
-| `sources/roster.py` | the real anchor: 28 real G-SIB / large banks (`data/external/banks/gsib_roster.csv`) |
+| `sources/roster.py` | the real anchor: 38 real entities — 28 banks + 10 corporates (`data/external/banks/gsib_roster.csv`) |
 | `sources/equity_returns.py` | real daily equity-return correlation (Yahoo) + committed snapshot |
 | `sources/synthetic.py` | calibrated-synthetic source, lifts `make_scalable_system(n≤54)` into a `NetworkSpec` |
-| `clean.py` | normalization + ID reconciliation; S&P rating → whole-letter PD bucket |
-| `estimate.py` | marginals `p_i` (Moody's PD table), correlation (equity), interbank totals + buffers |
+| `sources/holdings_13f.py` | 13F holdings → portfolio-overlap (common-asset / fire-sale) network: matrix, cosine + statistically-validated overlap, liquidity-weighted & directed fire-sale matrices |
+| `clean.py` | normalization + ID reconciliation; `node_type` (bank/corporate); S&P rating → whole-letter PD bucket |
+| `estimate.py` | marginals `p_i` (Moody's PD table), correlation (equity), interbank/borrowing totals + buffers |
 | `reconstruct.py` | bilateral exposures — `max_entropy` (RAS/IPF) \| `min_density` (Anand-style), pluggable |
 | `cluster.py` | greedy-modularity community detection + perturbation-ARI stability |
-| `assemble.py` | layers → content-hashed `NetworkSpec` → flat `SystemSpec` |
+| `assemble.py` | layers → risk-adjusted effective edges → content-hashed `NetworkSpec` → flat `SystemSpec` |
 | `validate.py` | round-trip + cluster-stability + B/C/D contract conformance |
 | `spec.py` | `EmpiricalLayer`, `ReconstructedLayer`, `FeatureSchema`, `Provenance`, `NetworkSpec` |
+
+The reconstructed bilateral notional is risk-adjusted into a **directed effective-loss matrix**
+by the shared `systemic_risk.edge_metrics` module — each edge scaled by loss-given-default
+(recovery / seniority / collateralization), maturity / rollover stress, wrong-way risk, and
+concentration / substitutability. The cascade propagates this effective matrix. Corporates
+borrow from banks but do not lend interbank, so the graph carries directed **bank → corporate**
+exposures.
 
 ## The canonical spec
 
