@@ -33,7 +33,7 @@ module-name = "systemic_risk"
 module-root = "src"
 
 [tool.pytest.ini_options]
-pythonpath = ["src"]
+pythonpath = ["src", "."]
 testpaths = ["tests"]
 
 [dependency-groups]
