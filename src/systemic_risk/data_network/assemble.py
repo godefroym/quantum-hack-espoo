@@ -7,6 +7,26 @@ This is the end-to-end real pipeline:
 
 The returned ``NetworkSpec`` is frozen, carries provenance with a content hash, and emits
 the flat ``SystemSpec`` that parts B/C/D consume via ``.to_system_spec()``.
+
+Entrypoints for B/C/D
+---------------------
+B (copula baseline), C (entangled generator) and D (cascade simulator) all consume the flat
+:class:`systemic_risk.spec.SystemSpec`. The two one-call entrypoints below return exactly
+that — drop-in for the synthetic ``make_synthetic_system`` / ``make_scalable_system`` they
+already use::
+
+    from systemic_risk.data_network import build_system_spec, build_synthetic_system_spec
+
+    spec = build_system_spec()                 # the REAL 28-bank network
+    spec = build_synthetic_system_spec(n=54)   # calibrated-synthetic, scales to 54 qubits
+
+    # ... then exactly as today:
+    gen = GaussianCopulaGenerator(); gen.fit(spec); samples = gen.sample(2000)
+    cascades = simulate_many(samples, spec)
+
+Both are deterministic (the real build is snapshot-backed; the synthetic build is seeded), so
+re-running gives an identical spec. To avoid rebuilding every process, build once and cache to
+disk with ``scripts/build_system_spec.py`` then ``SystemSpec.load_json(...)``.
 """
 
 from __future__ import annotations
@@ -139,5 +159,24 @@ def build_network_spec(
 
 
 def build_system_spec(roster_path: str | Path | None = None, **kwargs) -> SystemSpec:
-    """Convenience: build the real network spec and return the flat ``SystemSpec``."""
+    """B/C/D entrypoint — build the REAL bank network and return the flat ``SystemSpec``.
+
+    One call returns a validated ``SystemSpec`` (node names/types, exposure matrix, capital
+    buffers, marginal default probs, target pairwise correlation, community labels, and a
+    provenance/feature-schema-bearing ``metadata`` dict). ``**kwargs`` forwards to
+    :func:`build_network_spec` (e.g. ``reconstruction_method="min_density"``).
+    """
     return build_network_spec(roster_path, **kwargs).to_system_spec()
+
+
+def build_synthetic_system_spec(n: int = 54, seed: int = 11) -> SystemSpec:
+    """B/C/D entrypoint — calibrated-synthetic network as a flat ``SystemSpec``.
+
+    Use this to scale beyond the fixed real roster (up to the ``n = 54`` quantum-hardware
+    target) while keeping the same layered provenance. Deterministic given ``(n, seed)``.
+    """
+    # Imported lazily: the synthetic source imports systemic_risk.data, and importing it at
+    # module load would create an import cycle through the data package.
+    from systemic_risk.data_network.sources.synthetic import synthetic_network_spec
+
+    return synthetic_network_spec(n=n, seed=seed).to_system_spec()

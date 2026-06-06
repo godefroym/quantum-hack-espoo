@@ -3,7 +3,11 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from systemic_risk.data_network import build_network_spec, build_system_spec
+from systemic_risk.data_network import (
+    build_network_spec,
+    build_synthetic_system_spec,
+    build_system_spec,
+)
 from systemic_risk.data_network.cluster import (
     adjusted_rand_index,
     cluster_with_stability,
@@ -159,3 +163,22 @@ def test_build_is_deterministic() -> None:
     b = build_system_spec(prefer_snapshot=True)
     assert a.metadata["content_hash"] == b.metadata["content_hash"]
     assert np.allclose(a.exposure_matrix, b.exposure_matrix)
+
+
+def test_bcd_entrypoints_return_consumable_system_specs() -> None:
+    # Both entrypoints must return a flat SystemSpec that a generator fits and the cascade
+    # runs on — i.e. they are drop-in for the synthetic make_* helpers B/C/D already use.
+    for spec in (build_system_spec(prefer_snapshot=True), build_synthetic_system_spec(n=30)):
+        assert isinstance(spec, SystemSpec)
+        gen = GaussianCopulaGenerator()
+        gen.fit(spec)
+        samples = gen.sample(32, seed=0)
+        assert samples.shape == (32, spec.n)
+        result = run_cascade(samples[int(np.argmax(samples.sum(axis=1)))], spec)
+        assert result.final_defaults.shape == (spec.n,)
+
+
+def test_synthetic_entrypoint_is_deterministic() -> None:
+    a = build_synthetic_system_spec(n=40, seed=3)
+    b = build_synthetic_system_spec(n=40, seed=3)
+    assert a.metadata["content_hash"] == b.metadata["content_hash"]
