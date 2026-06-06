@@ -50,6 +50,21 @@ def test_real_bank_chain_has_two_entanglement_layers_and_calibrates() -> None:
     assert np.max(np.abs(marginals - spec.marginal_default_probs)) < 1e-3
 
 
+def test_sample_calibrated_block_is_reproducible() -> None:
+    spec = SCRIPT_MODULE.stressed_real_bank_spec(0.05)
+    edges = [(0, 1), (1, 2), (2, 3)]
+
+    first = SCRIPT_MODULE._sample_calibrated_block(
+        spec, edges, iterations=1, shots=256, seed=8
+    )
+    second = SCRIPT_MODULE._sample_calibrated_block(
+        spec, edges, iterations=1, shots=256, seed=8
+    )
+
+    assert np.allclose(first.ry, second.ry)
+    assert np.allclose(first.cry, second.cry)
+
+
 def test_vectorized_cascade_matches_reference_engine() -> None:
     spec = SCRIPT_MODULE.stressed_real_bank_spec(0.05)
     rng = np.random.default_rng(4)

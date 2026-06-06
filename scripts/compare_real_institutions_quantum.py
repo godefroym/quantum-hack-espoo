@@ -24,12 +24,17 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from systemic_risk.data_network.assemble import build_system_spec
 from systemic_risk.generators import GaussianCopulaGenerator
-from systemic_risk.generators.moments import moment_errors, targets_from_spec
+from systemic_risk.generators.moments import (
+    empirical_moments,
+    moment_errors,
+    targets_from_spec,
+)
 from systemic_risk.generators.quantum import ansatz as A
 from systemic_risk.generators.quantum import mps_backend
 from systemic_risk.generators.quantum.ibm_runtime import (
     DEFAULT_HARDWARE_SHOTS,
     best_qubit_line,
+    dependency_aware_layout,
     mitigate_readout_moments,
     run_block,
     run_readout_calibration,
@@ -41,9 +46,23 @@ from systemic_risk.spec import SystemSpec, joint_to_corr
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--shots", type=int, default=DEFAULT_HARDWARE_SHOTS)
+    parser.add_argument(
+        "--reference-shots",
+        type=int,
+        default=None,
+        help="Optional separate shot count for Gaussian/noiseless references.",
+    )
     parser.add_argument("--stress-mean-pd", type=float, default=0.05)
     parser.add_argument("--backend", default="ibm_boston")
     parser.add_argument("--max-depth", type=int, default=50)
+    parser.add_argument(
+        "--entanglement-layout",
+        choices=("chain", "topology"),
+        default="chain",
+        help="Use the original chain or a backend-aware graph expanded up to --max-depth.",
+    )
+    parser.add_argument("--calibration-iterations", type=int, default=5)
+    parser.add_argument("--calibration-shots", type=int, default=5_000)
     parser.add_argument("--optimization-level", type=int, choices=range(4), default=3)
     parser.add_argument("--twirling-randomizations", type=int, default=32)
     parser.add_argument("--seed", type=int, default=2026)
@@ -154,6 +173,141 @@ def fitted_chain(spec: SystemSpec) -> A.EntangledCircuit:
     return A.calibrate_block(block, mps_backend.block_moments, iterations=30)
 
 
+def _sample_calibrated_block(
+    spec: SystemSpec,
+    edges: list[tuple[int, int]],
+    *,
+    iterations: int,
+    shots: int,
+    seed: int,
+) -> A.EntangledCircuit:
+    """Calibrate a cyclic sparse graph from deterministic MPS sample moments."""
+    p = np.clip(spec.marginal_default_probs, 1e-6, 1.0 - 1e-6)
+    block = A._block_circuit(
+        list(range(spec.n)),
+        p,
+        A.target_covariance(spec),
+        edges,
+    )
+    call_index = 0
+
+    def sampled_moments(
+        ry: np.ndarray,
+        block_edges: list[tuple[int, int]],
+        cry: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        nonlocal call_index
+        samples = mps_backend.sample_block(
+            ry,
+            block_edges,
+            cry,
+            shots,
+            seed=seed + call_index,
+        ).astype(float)
+        call_index += 1
+        return samples.mean(axis=0), (samples.T @ samples) / len(samples)
+
+    return A.calibrate_block(
+        block,
+        sampled_moments,
+        iterations=iterations,
+        tol=0.0,
+    )
+
+
+def fitted_topology_graph(
+    spec: SystemSpec,
+    backend,
+    *,
+    max_depth: int,
+    optimization_level: int,
+    calibration_iterations: int,
+    calibration_shots: int,
+    seed: int,
+) -> tuple[A.EntangledCircuit, list[int], object, dict[str, object]]:
+    """Fit the strongest backend-compatible graph whose transpiled depth stays bounded."""
+    from qiskit.transpiler import generate_preset_pass_manager
+
+    dependency = np.abs(spec.dependency_matrix())
+    initial_layout, native_edges, readout = dependency_aware_layout(
+        backend,
+        dependency,
+        seed=seed,
+    )
+    native = {tuple(sorted(edge)) for edge in native_edges}
+    candidates = sorted(
+        (
+            (float(dependency[i, j]), i, j)
+            for i in range(spec.n)
+            for j in range(i + 1, spec.n)
+            if (i, j) not in native
+        ),
+        reverse=True,
+    )
+    selected = list(native_edges)
+    preview = None
+    routed_edges = 0
+
+    for _, source, target in candidates:
+        trial = selected + [(source, target)]
+        trial.sort(key=lambda edge: dependency[edge], reverse=True)
+        scheduled = [
+            edge
+            for layer in A.schedule_entanglement_edges(trial)
+            for edge in layer
+        ]
+        seed_block = A._block_circuit(
+            list(range(spec.n)),
+            np.clip(spec.marginal_default_probs, 1e-6, 1.0 - 1e-6),
+            A.target_covariance(spec),
+            scheduled,
+        )
+        candidate_preview = generate_preset_pass_manager(
+            optimization_level=optimization_level,
+            backend=backend,
+            initial_layout=initial_layout,
+            seed_transpiler=seed,
+        ).run(build_circuit(seed_block.ry, seed_block.edges, seed_block.cry, measure=True))
+        if candidate_preview.depth() <= max_depth:
+            selected.append((source, target))
+            preview = candidate_preview
+            routed_edges += 1
+
+    selected.sort(key=lambda edge: dependency[edge], reverse=True)
+    scheduled = [
+        edge
+        for layer in A.schedule_entanglement_edges(selected)
+        for edge in layer
+    ]
+    block = _sample_calibrated_block(
+        spec,
+        scheduled,
+        iterations=calibration_iterations,
+        shots=calibration_shots,
+        seed=seed + 10_000,
+    )
+    preview = generate_preset_pass_manager(
+        optimization_level=optimization_level,
+        backend=backend,
+        initial_layout=initial_layout,
+        seed_transpiler=seed,
+    ).run(build_circuit(block.ry, block.edges, block.cry, measure=True))
+    metadata = {
+        "native_entanglers": len(native_edges),
+        "routed_entanglers": routed_edges,
+        "dependency_score": float(sum(dependency[edge] for edge in block.edges)),
+        "mean_layout_readout_error": float(readout[initial_layout].mean()),
+        "calibration_method": "sampled MPS moments",
+        "calibration_iterations": calibration_iterations,
+        "calibration_shots_per_iteration": calibration_shots,
+        "transpiled_depth": int(preview.depth()),
+        "transpiled_two_qubit_gates": int(
+            sum(len(instruction.qubits) == 2 for instruction in preview.data)
+        ),
+    }
+    return block, initial_layout, preview, metadata
+
+
 def vectorized_cascade(samples: np.ndarray, spec: SystemSpec) -> tuple[np.ndarray, np.ndarray]:
     """Return final failure counts and cascade depths for the deterministic exposure engine."""
     state = np.asarray(samples, dtype=bool).copy()
@@ -218,6 +372,7 @@ def _plot(
     samples_by_label: dict[str, np.ndarray],
     spec: SystemSpec,
     *,
+    entangled_edges: list[tuple[int, int]],
     mitigated_moments: tuple[np.ndarray, np.ndarray] | None = None,
 ) -> None:
     import matplotlib
@@ -258,8 +413,8 @@ def _plot(
     ax.legend()
 
     kept = np.zeros((spec.n, spec.n), dtype=bool)
-    for index in range(spec.n - 1):
-        kept[index, index + 1] = kept[index + 1, index] = True
+    for source, target in entangled_edges:
+        kept[source, target] = kept[target, source] = True
     ax = axes[0, 1]
     target_joint = targets.pairwise_joint[kept]
     for label, color in zip(labels, colors):
@@ -282,7 +437,7 @@ def _plot(
     ax.set(
         xlabel="Target P(co-default)",
         ylabel="Observed P(co-default)",
-        title="Directly encoded chain edges",
+        title="Directly encoded entanglement edges",
     )
 
     ax = axes[1, 0]
@@ -326,8 +481,14 @@ def main() -> None:
     args = parse_args()
     if args.shots <= 0:
         raise ValueError("--shots must be positive")
+    if args.reference_shots is not None and args.reference_shots <= 0:
+        raise ValueError("--reference-shots must be positive")
     if args.max_depth <= 0:
         raise ValueError("--max-depth must be positive")
+    if args.calibration_iterations < 0:
+        raise ValueError("--calibration-iterations must be nonnegative")
+    if args.calibration_shots <= 0:
+        raise ValueError("--calibration-shots must be positive")
 
     include_corporates = args.scope == "all" or args.include_corporates
     output_dir = args.output_dir or (
@@ -343,25 +504,15 @@ def main() -> None:
         args.stress_mean_pd,
         include_corporates=include_corporates,
     )
-    block = fitted_chain(spec)
-    gaussian = GaussianCopulaGenerator()
-    gaussian.fit(spec)
-
-    samples_by_label = {
-        "Gaussian copula": gaussian.sample(args.shots, seed=args.seed),
-        "Quantum circuit - noiseless reference": mps_backend.sample_block(
-            block.ry,
-            block.edges,
-            block.cry,
-            args.shots,
-            seed=args.seed + 1,
-        ),
+    reference_shots = args.reference_shots or args.shots
+    service = None
+    backend = None
+    physical_layout: list[int] | None = None
+    preview = None
+    layout_metadata: dict[str, object] = {
+        "strategy": args.entanglement_layout,
     }
-    hardware_metadata: dict[str, object] = {}
-    mitigated_moments: tuple[np.ndarray, np.ndarray] | None = None
-
-    if args.submit:
-        from qiskit.transpiler import generate_preset_pass_manager
+    if args.entanglement_layout == "topology":
         from qiskit_ibm_runtime import QiskitRuntimeService
 
         service_kwargs: dict[str, str] = {}
@@ -374,12 +525,66 @@ def main() -> None:
             service_kwargs["instance"] = os.environ["IBM_QUANTUM_INSTANCE"]
         service = QiskitRuntimeService(**service_kwargs)
         backend = service.backend(args.backend)
-        physical_line, readout = best_qubit_line(backend, spec.n)
-        preview = generate_preset_pass_manager(
+        block, physical_layout, preview, fitted_metadata = fitted_topology_graph(
+            spec,
+            backend,
+            max_depth=args.max_depth,
             optimization_level=args.optimization_level,
-            backend=backend,
-            initial_layout=physical_line,
-        ).run(build_circuit(block.ry, block.edges, block.cry, measure=True))
+            calibration_iterations=args.calibration_iterations,
+            calibration_shots=args.calibration_shots,
+            seed=args.seed,
+        )
+        layout_metadata.update(fitted_metadata)
+    else:
+        block = fitted_chain(spec)
+    gaussian = GaussianCopulaGenerator()
+    gaussian.fit(spec)
+
+    samples_by_label = {
+        "Gaussian copula": gaussian.sample(reference_shots, seed=args.seed),
+        "Quantum circuit - noiseless reference": mps_backend.sample_block(
+            block.ry,
+            block.edges,
+            block.cry,
+            reference_shots,
+            seed=args.seed + 1,
+        ),
+    }
+    hardware_metadata: dict[str, object] = {}
+    mitigated_moments: tuple[np.ndarray, np.ndarray] | None = None
+
+    if args.submit:
+        from qiskit.transpiler import generate_preset_pass_manager
+        from qiskit_ibm_runtime import QiskitRuntimeService
+
+        if service is None:
+            service_kwargs: dict[str, str] = {}
+            if os.environ.get("IBM_QUANTUM_TOKEN"):
+                service_kwargs["token"] = os.environ["IBM_QUANTUM_TOKEN"]
+                service_kwargs["channel"] = os.environ.get(
+                    "IBM_QUANTUM_CHANNEL", "ibm_quantum_platform"
+                )
+            if os.environ.get("IBM_QUANTUM_INSTANCE"):
+                service_kwargs["instance"] = os.environ["IBM_QUANTUM_INSTANCE"]
+            service = QiskitRuntimeService(**service_kwargs)
+        if backend is None:
+            backend = service.backend(args.backend)
+        if physical_layout is None:
+            physical_layout, readout = best_qubit_line(backend, spec.n)
+        else:
+            readout = np.array(
+                [
+                    backend.target["measure"][(q,)].error
+                    for q in range(backend.num_qubits)
+                ]
+            )
+        if preview is None:
+            preview = generate_preset_pass_manager(
+                optimization_level=args.optimization_level,
+                backend=backend,
+                initial_layout=physical_layout,
+                seed_transpiler=args.seed,
+            ).run(build_circuit(block.ry, block.edges, block.cry, measure=True))
         preview_depth = int(preview.depth())
         if preview_depth > args.max_depth:
             raise RuntimeError(
@@ -391,11 +596,12 @@ def main() -> None:
             shots=args.shots,
             backend_name=args.backend,
             optimization_level=args.optimization_level,
-            initial_layout=physical_line,
+            initial_layout=physical_layout,
             dynamical_decoupling=True,
             measure_twirling=True,
             gate_twirling=True,
             twirling_randomizations=args.twirling_randomizations,
+            seed_transpiler=args.seed,
             service=service,
         )
         calibration = run_readout_calibration(
@@ -403,8 +609,9 @@ def main() -> None:
             shots=min(args.shots, DEFAULT_HARDWARE_SHOTS),
             backend_name=args.backend,
             optimization_level=args.optimization_level,
-            initial_layout=physical_line,
+            initial_layout=physical_layout,
             measure_twirling=True,
+            seed_transpiler=args.seed,
             service=service,
         )
         mitigated_moments = mitigate_readout_moments(hardware.samples, calibration)
@@ -416,8 +623,8 @@ def main() -> None:
             "circuit_depth": hardware.circuit_depth,
             "two_qubit_gates": hardware.two_qubit_gates,
             "circuit_operations": hardware.circuit_operations,
-            "physical_line": physical_line,
-            "mean_line_readout_error": float(readout[physical_line].mean()),
+            "physical_layout": physical_layout,
+            "mean_layout_readout_error": float(readout[physical_layout].mean()),
             "gate_twirling": True,
             "measure_twirling": True,
             "twirling_randomizations": args.twirling_randomizations,
@@ -440,12 +647,22 @@ def main() -> None:
         figure,
         samples_by_label,
         spec,
+        entangled_edges=block.edges,
         mitigated_moments=mitigated_moments,
     )
 
-    ideal_marginals, ideal_joint = mps_backend.block_moments(
-        block.ry, block.edges, block.cry
-    )
+    if args.entanglement_layout == "topology":
+        sampled_reference = empirical_moments(
+            samples_by_label["Quantum circuit - noiseless reference"]
+        )
+        ideal_marginals = sampled_reference.marginals
+        ideal_joint = sampled_reference.pairwise_joint
+        ideal_moment_source = "sampled noiseless MPS reference"
+    else:
+        ideal_marginals, ideal_joint = mps_backend.block_moments(
+            block.ry, block.edges, block.cry
+        )
+        ideal_moment_source = "exact MPS expectations"
     targets = targets_from_spec(spec)
     kept = np.zeros((spec.n, spec.n), dtype=bool)
     for source, target in block.edges:
@@ -453,7 +670,8 @@ def main() -> None:
     report = {
         "network": spec.metadata["subset"],
         "scope": "all" if include_corporates else "banks",
-        "shots_per_generator": args.shots,
+        "reference_shots_per_generator": reference_shots,
+        "hardware_shots": args.shots if args.submit else None,
         "stress_mean_pd": args.stress_mean_pd,
         "institution_order": spec.node_names,
         "institution_types": spec.node_types,
@@ -464,9 +682,11 @@ def main() -> None:
             len(block.edges) / (spec.n * (spec.n - 1) // 2)
         ),
         "entanglement_depth": block.entanglement_depth,
+        "entanglement_layout": layout_metadata,
         "ideal_marginal_rmse": float(
             np.sqrt(np.mean((ideal_marginals - targets.marginals) ** 2))
         ),
+        "ideal_moment_source": ideal_moment_source,
         "ideal_joint_rmse_kept_edges": float(
             np.sqrt(np.mean((ideal_joint[kept] - targets.pairwise_joint[kept]) ** 2))
         ),

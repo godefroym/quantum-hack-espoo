@@ -103,10 +103,19 @@ uv run --extra quantum python scripts/compare_real_institutions_quantum.py --sco
 # 38 institutions, noiseless MPS reference
 uv run --extra quantum python scripts/compare_real_institutions_quantum.py --scope all
 
+# Experimental backend-aware graph: add native/routed relations up to depth 50
+uv run --extra quantum python scripts/compare_real_institutions_quantum.py \
+  --scope all --entanglement-layout topology --backend <backend-name> --max-depth 50
+
 # Explicit IBM submission; large requests are split at the backend shot limit
 uv run --extra quantum python scripts/compare_real_institutions_quantum.py \
   --scope all --shots 1000000 --backend <backend-name> --submit
 ```
+
+The default `chain` layout is the low-noise hardware baseline. The experimental `topology`
+layout maps institutions onto a compact native backend subgraph, then greedily adds important
+non-native dependencies while enforcing `--max-depth`. It can encode more pairwise relations,
+but the additional routing and two-qubit gates may cost more fidelity than they add expressivity.
 
 ## The real exposure network (Part A)
 

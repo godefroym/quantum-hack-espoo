@@ -8,6 +8,7 @@ from systemic_risk.generators.quantum.ibm_runtime import (
     ReadoutCalibration,
     _bitstrings_to_samples,
     _split_shots,
+    dependency_aware_layout,
     mitigate_readout_moments,
 )
 from systemic_risk.generators.quantum.qiskit_backend import build_circuit
@@ -105,3 +106,26 @@ def test_ibm_runtime_executes_against_small_fake_backend() -> None:
     assert result.samples.shape == (32, 4)
     assert result.circuit_depth > 0
     assert result.two_qubit_gates > 0
+
+
+def test_dependency_aware_layout_uses_native_backend_edges() -> None:
+    pytest.importorskip("qiskit_ibm_runtime")
+    from qiskit_ibm_runtime.fake_provider import FakeOslo
+
+    backend = FakeOslo()
+    dependency = np.full((4, 4), 0.2)
+    np.fill_diagonal(dependency, 0.0)
+    layout, logical_edges, _ = dependency_aware_layout(
+        backend,
+        dependency,
+        annealing_steps=100,
+    )
+    gate = next(name for name in ("cz", "ecr", "cx") if name in backend.target)
+    native = {tuple(sorted(pair)) for pair in backend.target[gate]}
+
+    assert len(layout) == 4
+    assert logical_edges
+    assert all(
+        tuple(sorted((layout[source], layout[target]))) in native
+        for source, target in logical_edges
+    )

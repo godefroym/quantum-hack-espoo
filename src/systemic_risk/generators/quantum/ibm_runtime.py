@@ -9,6 +9,7 @@ saved Qiskit Runtime account or from ``IBM_QUANTUM_TOKEN`` and
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 import os
 from typing import Any
 
@@ -38,7 +39,13 @@ def best_qubit_line(backend: Any, length: int) -> tuple[list[int], np.ndarray]:
 
     target = backend.target
     readout = np.array([target["measure"][(q,)].error for q in range(backend.num_qubits)])
-    two_qubit = target["cz"] if "cz" in target else target["ecr"]
+    two_qubit_gate = next(
+        (name for name in ("cz", "ecr", "cx") if name in target),
+        None,
+    )
+    if two_qubit_gate is None:
+        raise RuntimeError("backend exposes no supported two-qubit gate")
+    two_qubit = target[two_qubit_gate]
     edge_error = {
         pair: properties.error
         for pair, properties in two_qubit.items()
@@ -83,6 +90,128 @@ def best_qubit_line(backend: Any, length: int) -> tuple[list[int], np.ndarray]:
     return best, readout
 
 
+def dependency_aware_layout(
+    backend: Any,
+    dependency: np.ndarray,
+    *,
+    seed: int = 2026,
+    annealing_steps: int = 100_000,
+) -> tuple[list[int], list[tuple[int, int]], np.ndarray]:
+    """Map institutions to a compact native subgraph, maximizing encoded dependency.
+
+    Returns ``(initial_layout, logical_edges, readout_errors)``. Every returned logical
+    edge is native under ``initial_layout``, so the corresponding CRY gates need no SWAPs.
+    """
+    dependency = np.asarray(dependency, dtype=float)
+    if dependency.ndim != 2 or dependency.shape[0] != dependency.shape[1]:
+        raise ValueError("dependency must be a square matrix")
+    if annealing_steps < 0:
+        raise ValueError("annealing_steps must be nonnegative")
+    length = len(dependency)
+    if length <= 0 or length > backend.num_qubits:
+        raise ValueError("dependency size must lie between 1 and backend.num_qubits")
+
+    target = backend.target
+    readout = np.array([target["measure"][(q,)].error for q in range(backend.num_qubits)])
+    two_qubit_gate = next(
+        (name for name in ("cz", "ecr", "cx") if name in target),
+        None,
+    )
+    if two_qubit_gate is None:
+        raise RuntimeError("backend exposes no supported two-qubit gate")
+    two_qubit = target[two_qubit_gate]
+    edge_error = {
+        tuple(sorted(pair)): properties.error
+        for pair, properties in two_qubit.items()
+        if properties is not None and properties.error is not None
+    }
+    physical_edges = sorted(edge_error)
+    adjacency: dict[int, set[int]] = {
+        qubit: set() for qubit in range(backend.num_qubits)
+    }
+    for source, target_qubit in physical_edges:
+        adjacency[source].add(target_qubit)
+        adjacency[target_qubit].add(source)
+
+    def grow(seed_qubit: int) -> set[int] | None:
+        selected = {seed_qubit}
+        while len(selected) < length:
+            frontier = set().union(*(adjacency[q] for q in selected)) - selected
+            if not frontier:
+                return None
+            next_qubit = max(
+                frontier,
+                key=lambda q: (
+                    sum(neighbor in selected for neighbor in adjacency[q]),
+                    -readout[q],
+                    len(adjacency[q]),
+                    -q,
+                ),
+            )
+            selected.add(next_qubit)
+        return selected
+
+    best: tuple[tuple[float, float, float], set[int], list[tuple[int, int]]] | None = None
+    for seed_qubit in range(backend.num_qubits):
+        selected = grow(seed_qubit)
+        if selected is None:
+            continue
+        induced = [
+            edge
+            for edge in physical_edges
+            if edge[0] in selected and edge[1] in selected
+        ]
+        score = (
+            float(len(induced)),
+            -float(np.mean([edge_error[edge] for edge in induced])),
+            -float(readout[list(selected)].mean()),
+        )
+        if best is None or score > best[0]:
+            best = (score, selected, induced)
+    if best is None:
+        raise RuntimeError(f"no connected physical subgraph of size {length} found")
+
+    _, selected, induced = best
+    physical = sorted(selected)
+    slot = {qubit: index for index, qubit in enumerate(physical)}
+    slot_edges = [(slot[source], slot[target_qubit]) for source, target_qubit in induced]
+    physical_degree = np.array(
+        [sum(index in edge for edge in slot_edges) for index in range(length)]
+    )
+    logical_strength = np.abs(dependency).sum(axis=1)
+    assignment = np.empty(length, dtype=int)
+    assignment[np.argsort(-physical_degree)] = np.argsort(-logical_strength)
+
+    def objective(values: np.ndarray) -> float:
+        return float(sum(dependency[values[i], values[j]] for i, j in slot_edges))
+
+    rng = np.random.default_rng(seed)
+    current = objective(assignment)
+    best_assignment = assignment.copy()
+    best_objective = current
+    for step in range(annealing_steps):
+        first, second = rng.choice(length, size=2, replace=False)
+        assignment[first], assignment[second] = assignment[second], assignment[first]
+        candidate = objective(assignment)
+        temperature = 0.02 * (1.0 - step / max(annealing_steps, 1)) + 1e-5
+        if candidate >= current or rng.random() < math.exp((candidate - current) / temperature):
+            current = candidate
+        else:
+            assignment[first], assignment[second] = assignment[second], assignment[first]
+        if current > best_objective:
+            best_objective = current
+            best_assignment = assignment.copy()
+
+    initial_layout = [0] * length
+    for physical_slot, logical_qubit in enumerate(best_assignment):
+        initial_layout[int(logical_qubit)] = physical[physical_slot]
+    logical_edges = [
+        (int(best_assignment[first]), int(best_assignment[second]))
+        for first, second in slot_edges
+    ]
+    return initial_layout, logical_edges, readout
+
+
 @dataclass(frozen=True)
 class IBMHardwareResult:
     backend_name: str
@@ -117,6 +246,7 @@ def run_block(
     measure_twirling: bool = False,
     gate_twirling: bool = False,
     twirling_randomizations: int | None = None,
+    seed_transpiler: int | None = None,
     service: Any | None = None,
 ) -> IBMHardwareResult:
     """Transpile and execute one fitted circuit block with IBM Runtime ``SamplerV2``.
@@ -164,6 +294,7 @@ def run_block(
         optimization_level=optimization_level,
         backend=backend,
         initial_layout=initial_layout,
+        seed_transpiler=seed_transpiler,
     )
     isa_circuit = pass_manager.run(circuit)
 
@@ -213,6 +344,7 @@ def run_readout_calibration(
     optimization_level: int = 1,
     initial_layout: list[int] | None = None,
     measure_twirling: bool = True,
+    seed_transpiler: int | None = None,
     service: Any | None = None,
 ) -> ReadoutCalibration:
     """Measure simultaneous ``|0...0>``/``|1...1>`` assignment errors on a layout."""
@@ -257,6 +389,7 @@ def run_readout_calibration(
         optimization_level=optimization_level,
         backend=backend,
         initial_layout=initial_layout,
+        seed_transpiler=seed_transpiler,
     )
     circuits = [pass_manager.run(zero), pass_manager.run(one)]
 
