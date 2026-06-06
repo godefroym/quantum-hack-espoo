@@ -44,6 +44,34 @@ A = U_QCBM (load P(x)) -> U_severity (cascade oracle) -> mark severe
 ## Run
 
 This project is managed with [uv](https://docs.astral.sh/uv/) ([install it](https://docs.astral.sh/uv/getting-started/installation/)), which provisions the pinned interpreter, virtual environment, and locked dependencies for you. `uv run` executes inside that environment — nothing to activate.
+```text
+src/systemic_risk/
+  spec.py                 # flat SystemSpec validation and JSON/NPZ IO (the B/C/D contract)
+  edge_metrics.py         # directed risk-adjusted edge weights (LGD, maturity, wrong-way, …)
+  data/                   # deterministic synthetic network generation
+  data_network/           # PART A: real data -> canonical layered NetworkSpec -> SystemSpec
+    sources/              #   roster (real anchor), equity_returns (Yahoo), synthetic (scaling)
+    clean / estimate      #   normalize/reconcile; marginals, correlation, balance-sheet totals
+    reconstruct           #   bilateral exposures: max_entropy (RAS) | min_density (pluggable)
+    cluster / assemble    #   community detection + stability; layer assembly
+    validate              #   round-trip + cluster-stability + B/C/D contract conformance
+  generators/             # Bernoulli, copula, and entangled generators
+  simulator/              # deterministic cascade, exogenous shocks, LGD, round diagnostics
+  evaluation/             # metrics and comparison harness
+  visualization/          # graph plots (incl. community plot) and crisis cards
+  utils/
+scripts/
+  run_mvp.py
+  run_scaling_experiment.py
+  build_system_spec.py    # PART A end-to-end: build + validate + render the real network
+tests/
+app/
+notebooks/
+```
+
+## Run The MVP
+
+This project is managed with [uv](https://docs.astral.sh/uv/) ([install it](https://docs.astral.sh/uv/getting-started/installation/)). `uv` provisions the pinned Python interpreter (`.python-version`), creates the virtual environment, and installs the locked dependencies (`uv.lock`) for you. `uv run` executes inside that environment.
 
 ```bash
 uv sync                                      # core + dev dependencies
@@ -59,11 +87,36 @@ uv run pytest                                # tests
 | `run_demonstration.py` | **Canonical** — full per-criterion verdict on the real community + the n=54 scale story |
 | `run_mvp.py` | **Smoke test** — fast cascade comparison on the real network; feeds the dashboard |
 | `build_system_spec.py` | Part A — build + validate + render the real exposure network |
+| `compare_real_institutions_quantum.py` | 28-bank or 38-institution Gaussian vs ideal/IBM QCBM comparison |
 | `run_scaling_experiment.py` | Size/scale study + the n=54 mean-field oracle table |
 | `run_qae_tail_risk.py` | Calculation surface — QAE of `P(severe)`/CVaR vs Monte Carlo (equivalence + oracle-query advantage) |
 | `run_huang_2008_demo.py`, `compare_generators_huang.py` | Optional fire-sale contagion channel (see below) |
 
 All entry points write to `outputs/` (e.g. `run_mvp.py` → `network.png`, `comparison.csv`, `real_system.json`, one crisis card per generator).
+
+The real-institution comparison has one implementation with two scopes. The 38-qubit scope
+contains the same 28 banks plus 10 corporates; it is not a separate or concatenated model.
+
+```bash
+# 28 banks, noiseless MPS reference
+uv run --extra quantum python scripts/compare_real_institutions_quantum.py --scope banks
+
+# 38 institutions, noiseless MPS reference
+uv run --extra quantum python scripts/compare_real_institutions_quantum.py --scope all
+
+# Experimental backend-aware graph: add native/routed relations up to depth 50
+uv run --extra quantum python scripts/compare_real_institutions_quantum.py \
+  --scope all --entanglement-layout topology --backend <backend-name> --max-depth 50
+
+# Explicit IBM submission; large requests are split at the backend shot limit
+uv run --extra quantum python scripts/compare_real_institutions_quantum.py \
+  --scope all --shots 1000000 --backend <backend-name> --submit
+```
+
+The default `chain` layout is the low-noise hardware baseline. The experimental `topology`
+layout maps institutions onto a compact native backend subgraph, then greedily adds important
+non-native dependencies while enforcing `--max-depth`. It can encode more pairwise relations,
+but the additional routing and two-qubit gates may cost more fidelity than they add expressivity.
 
 ## The real exposure network (Part A)
 
@@ -125,7 +178,36 @@ stable clusters → B/C/D conformance):
 uv run pytest tests/test_data_network.py -q
 ```
 
-## Dependency clustering and entanglement layout
+The flat spec records whether `target_pairwise_corr` is a latent Gaussian
+correlation or a binary default-event correlation. This keeps the Gaussian
+copula baseline and the entangled generator on the same marginal and pairwise
+default targets.
+
+### Scenario generation (GAM)
+
+Raw public CSVs (roster, ratings, equity returns, balance-sheet totals) are
+processed by the `scripts/build_system_spec.py` pipeline into a canonical
+`SystemSpec` (`outputs/data_network/system_spec.json` or `.npz`). The new
+Generative Augmentation Model (GAM) layer consumes that flat `SystemSpec`,
+calibrates a baseline Gaussian-copula to the `marginal_default_probs` and
+pairwise dependency targets, and synthesises binary initial-default scenarios
+in the same schema the simulator expects. The GAM also includes a simple
+exposure-aware augmentation step (one-step buffer breach) so generated
+scenarios reflect both statistical dependencies and exposure-driven stress.
+
+Use the provided CLI:
+
+```bash
+python -m scenario_generation.cli --system-spec outputs/data_network/system_spec.json \
+  --n-scenarios 10000 --out outputs/scenarios/gam_scenarios.csv --seed 0
+```
+
+
+The shared cascade keeps the original binary-scenario API and also supports
+named scenarios, direct exogenous losses, scalar or edge-level LGD, explicit
+failure rounds, cumulative-loss diagnostics, and convergence reporting.
+
+### Dependency clustering and entanglement layout
 
 The contagion simulator stays classical, deterministic, and generator-agnostic.
 This clustering layer does a different job: it decides which institutions are
@@ -218,7 +300,7 @@ uv run --extra quantum python scripts/run_ibm_quantum_test.py --submit
 
 # Or select a backend explicitly:
 uv run --extra quantum python scripts/run_ibm_quantum_test.py \
-  --backend <backend-name> --qubits 8 --max-degree 2 --shots 4096 --submit
+  --backend <backend-name> --qubits 8 --max-degree 2 --shots 100000 --submit
 ```
 
 The script transpiles the fitted `RY + CRY` circuit to the backend ISA, executes it with

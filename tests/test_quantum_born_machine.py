@@ -114,6 +114,52 @@ def test_cry_covariance_matches_closed_form() -> None:
     assert abs(cov - target_cov) < 1e-12
 
 
+def test_entanglement_edges_are_scheduled_into_parallel_layers() -> None:
+    ring = [(i, i + 1) for i in range(19)] + [(0, 19)]
+    layers = A.schedule_entanglement_edges(ring)
+
+    assert len(layers) == 2
+    assert sorted(edge for layer in layers for edge in layer) == sorted(ring)
+    for layer in layers:
+        touched = [qubit for edge in layer for qubit in edge]
+        assert len(touched) == len(set(touched))
+
+
+def test_twenty_qubit_banded_circuit_has_two_entanglement_layers() -> None:
+    n = 20
+    index = np.arange(n)
+    distance = np.abs(index[:, None] - index[None, :])
+    corr = 0.04 + 0.14 * np.exp(-distance / 2.0)
+    np.fill_diagonal(corr, 1.0)
+    spec = SystemSpec(
+        node_names=[f"Bank {i + 1}" for i in range(n)],
+        node_types=["bank"] * n,
+        exposure_matrix=np.zeros((n, n)),
+        capital_buffers=np.ones(n),
+        marginal_default_probs=np.linspace(0.05, 0.25, n),
+        target_pairwise_corr=corr,
+        clusters=["hardware-test"] * n,
+    )
+    generator = EntangledBornMachineGenerator(
+        ansatz="entangled",
+        max_degree=2,
+        max_block_qubits=22,
+        calibrate=False,
+    )
+
+    generator.fit(spec)
+
+    assert len(generator.blocks_) == 1
+    assert len(generator.blocks_[0].edges) == 20
+    assert generator.blocks_[0].entanglement_depth == 2
+    pytest.importorskip("qiskit")
+    from systemic_risk.generators.quantum.qiskit_backend import build_circuit
+
+    block = generator.blocks_[0]
+    circuit = build_circuit(block.ry, block.edges, block.cry, measure=True)
+    assert circuit.depth() == 4
+
+
 def test_z_diagonal_phase_is_inert_in_measurement_basis() -> None:
     """A Z-diagonal gate (e.g. RZZ) cannot move Z-basis marginals/covariance -- only phase.
 

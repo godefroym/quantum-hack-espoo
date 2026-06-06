@@ -1,0 +1,25 @@
+flowchart LR
+  subgraph Input[Input]
+    Spec[[SystemSpec / NetworkSpec]]
+  end
+
+  Spec -->|marginals, correlations, exposures| Generators[Generators]
+
+  subgraph GeneratorsGroup[Generators]
+    Classical[Classical]
+    Entangled[Entangled]
+    Layout[Layout]
+  end
+
+  Generators --> Classical
+  Generators --> Entangled
+  Spec --> Layout
+  Layout --> Entangled
+
+  Classical --> Simulator
+  Entangled --> Simulator
+
+  Simulator --> Metrics
+  Metrics --> Evaluation
+  Evaluation --> Visuals
+  Evaluation --> Tests

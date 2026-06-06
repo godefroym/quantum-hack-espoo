@@ -1,0 +1,28 @@
+%% High-level pipeline: Quantum Systemic Stress Scenario Discovery
+```mermaid
+flowchart LR
+  subgraph Input[Input]
+    Spec[[SystemSpec / NetworkSpec]]
+  end
+
+  Spec -->|marginals, correlations, exposures| Generators[Scenario Generators]
+
+  subgraph GeneratorsGroup[Generators]
+    Classical[Classical\n(Bernoulli / Copula / Ising)]
+    Entangled[Entangled / Quantum\n(Born-machine / PQC)]
+    Layout[Clustering / Entanglement Layout]
+  end
+
+  Generators --> Classical
+  Generators --> Entangled
+  Spec --> Layout
+  Layout --> Entangled
+
+  Classical --> Simulator[Contagion Simulator\n(deterministic, generator-agnostic)]
+  Entangled --> Simulator
+
+  Simulator --> Metrics[Metrics\n(loss, rounds, CVaR, tail probs)]
+  Metrics --> Evaluation[Evaluation Harness & Comparison]
+  Evaluation --> Visuals[Visualisation & Reports]
+  Evaluation --> Tests[Automated tests]
+```

@@ -185,6 +185,9 @@ class EntangledBornMachineGenerator(ScenarioGenerator):
                 within_clusters_only=not whole_system,
                 max_degree=self.max_degree,
             )
+        self.edges_ = [
+            edge for layer in A.schedule_entanglement_edges(self.edges_) for edge in layer
+        ]
         block_qubits = A.partition_blocks(spec, self.edges_, max_block=self.max_block_qubits)
 
         moments_fn = self._block_moments_fn()

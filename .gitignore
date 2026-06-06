@@ -7,6 +7,8 @@ __pycache__/
 .ruff_cache/
 
 outputs/
+outputs/scenarios/
+outputs/scenarios/*.csv
 *.egg-info/
 .DS_Store
 .env
@@ -22,3 +24,6 @@ data/external/holdings_13f/*.Rdata
 data/external/holdings_13f/processed_tables/
 data/external/holdings_13f/raw_filings/
 data/external/holdings_13f/raw_tables/
+
+# Claude Code local agent state (worktrees, etc.)
+.claude/

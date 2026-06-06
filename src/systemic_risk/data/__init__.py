@@ -1,6 +1,13 @@
 """Data loaders and synthetic system generation."""
 
 from systemic_risk.data.bank_asset_adapter import bank_asset_to_system_spec
+from systemic_risk.data.clustered_synthetic import (
+    ClusteredSystemConfig,
+    cluster_block_means,
+    make_clustered_system,
+    planted_latent_correlation,
+    reference_default_samples,
+)
 from systemic_risk.data.huang_2008 import (
     HUANG_ASSET_NAMES,
     make_huang_2008_style_system,
@@ -9,8 +16,13 @@ from systemic_risk.data.synthetic import make_scalable_system, make_synthetic_sy
 
 __all__ = [
     "HUANG_ASSET_NAMES",
+    "ClusteredSystemConfig",
     "bank_asset_to_system_spec",
+    "cluster_block_means",
+    "make_clustered_system",
     "make_huang_2008_style_system",
     "make_scalable_system",
     "make_synthetic_system",
+    "planted_latent_correlation",
+    "reference_default_samples",
 ]
