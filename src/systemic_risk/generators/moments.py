@@ -4,8 +4,13 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from systemic_risk.spec import SystemSpec, joint_to_corr
+from systemic_risk.spec import (
+    CORRELATION_SPACE_LATENT_GAUSSIAN,
+    SystemSpec,
+    joint_to_corr,
+)
 from systemic_risk.utils.validation import ensure_binary_samples
+from systemic_risk.utils.validation import nearest_psd_correlation
 
 
 @dataclass(frozen=True)
@@ -15,6 +20,7 @@ class MomentTargets:
     marginals: np.ndarray
     pairwise_joint: np.ndarray
     pairwise_corr: np.ndarray
+    latent_gaussian_corr: np.ndarray | None = None
 
     @property
     def n(self) -> int:
@@ -38,10 +44,17 @@ def targets_from_spec(spec: SystemSpec) -> MomentTargets:
     pairwise_joint = spec.target_pairwise_joint_probs()
     pairwise_corr = joint_to_corr(pairwise_joint, marginals)
     np.fill_diagonal(pairwise_corr, 1.0)
+    latent_gaussian_corr = None
+    if (
+        spec.correlation_space == CORRELATION_SPACE_LATENT_GAUSSIAN
+        and spec.target_pairwise_corr is not None
+    ):
+        latent_gaussian_corr = nearest_psd_correlation(spec.target_pairwise_corr)
     return MomentTargets(
         marginals=marginals,
         pairwise_joint=pairwise_joint,
         pairwise_corr=pairwise_corr,
+        latent_gaussian_corr=latent_gaussian_corr,
     )
 
 

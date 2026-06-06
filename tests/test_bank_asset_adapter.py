@@ -49,6 +49,7 @@ def test_adapter_targets_are_psd_and_deterministic() -> None:
     assert np.allclose(first.target_pairwise_corr, first.target_pairwise_corr.T)
     assert np.allclose(np.diag(first.target_pairwise_corr), 1.0)
     assert np.linalg.eigvalsh(first.target_pairwise_corr).min() >= -1e-10
+    assert first.correlation_space == "binary_default"
 
 
 def test_lower_equity_ratio_gets_higher_heuristic_default_probability() -> None:

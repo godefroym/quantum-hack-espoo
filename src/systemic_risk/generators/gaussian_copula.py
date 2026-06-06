@@ -26,10 +26,13 @@ class GaussianCopulaGenerator(ScenarioGenerator):
         self.targets_ = targets_from_spec(spec)
         self.p_ = np.clip(self.targets_.marginals, 1e-9, 1 - 1e-9)
         self.thresholds_ = norm.ppf(self.p_)
-        raw_latent_corr = _calibrate_latent_correlation(
-            self.thresholds_,
-            self.targets_.pairwise_joint,
-        )
+        if self.targets_.latent_gaussian_corr is not None:
+            raw_latent_corr = spec.target_pairwise_corr.copy()
+        else:
+            raw_latent_corr = _calibrate_latent_correlation(
+                self.thresholds_,
+                self.targets_.pairwise_joint,
+            )
         self.corr_ = nearest_psd_correlation(raw_latent_corr)
         self.max_projection_change_ = float(
             np.max(np.abs(self.corr_ - raw_latent_corr))

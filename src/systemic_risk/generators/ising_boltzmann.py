@@ -235,16 +235,9 @@ class IsingBoltzmannGenerator(ScenarioGenerator):
     @staticmethod
     def _target_mean_default_corr(spec: SystemSpec) -> float:
         """Target mean off-diagonal default (event) correlation implied by the spec."""
-        if spec.target_pairwise_corr is not None:
-            iu = np.triu_indices(spec.n, k=1)
-            return float(spec.target_pairwise_corr[iu].mean())
-        # Fall back to the correlation implied by the target joint default probabilities.
-        joint = spec.target_pairwise_joint_probs()
-        p = spec.marginal_default_probs
+        corr = spec.dependency_matrix()
         iu = np.triu_indices(spec.n, k=1)
-        denom = np.sqrt(p * (1.0 - p))
-        rho = (joint[iu] - np.outer(p, p)[iu]) / (denom[iu[0]] * denom[iu[1]] + 1e-12)
-        return float(np.mean(rho))
+        return float(corr[iu].mean())
 
     # ----------------------------------------------------------------- sampling
     def _sample_kwargs(self) -> dict[str, object]:

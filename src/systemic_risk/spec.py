@@ -6,6 +6,17 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+from scipy.stats import multivariate_normal, norm
+
+from systemic_risk.utils.validation import nearest_psd_correlation
+
+
+CORRELATION_SPACE_BINARY_DEFAULT = "binary_default"
+CORRELATION_SPACE_LATENT_GAUSSIAN = "latent_gaussian"
+VALID_CORRELATION_SPACES = {
+    CORRELATION_SPACE_BINARY_DEFAULT,
+    CORRELATION_SPACE_LATENT_GAUSSIAN,
+}
 
 
 def _as_float_array(value: Any, name: str) -> np.ndarray:
@@ -57,6 +68,20 @@ class SystemSpec:
     def n(self) -> int:
         return len(self.node_names)
 
+    @property
+    def correlation_space(self) -> str:
+        """Meaning of ``target_pairwise_corr``.
+
+        Specs written before the contract was introduced default to binary
+        default-event correlation for backward compatibility.
+        """
+        return str(
+            self.metadata.get(
+                "correlation_space",
+                CORRELATION_SPACE_BINARY_DEFAULT,
+            )
+        )
+
     def validate(self) -> None:
         n = len(self.node_names)
         if n == 0:
@@ -79,6 +104,11 @@ class SystemSpec:
             raise ValueError("capital_buffers must be nonnegative")
         if np.any((self.marginal_default_probs < 0) | (self.marginal_default_probs > 1)):
             raise ValueError("marginal_default_probs must lie in [0, 1]")
+        if self.correlation_space not in VALID_CORRELATION_SPACES:
+            raise ValueError(
+                "metadata['correlation_space'] must be one of "
+                f"{sorted(VALID_CORRELATION_SPACES)}"
+            )
         if self.target_pairwise_corr is not None:
             if self.target_pairwise_corr.shape != (n, n):
                 raise ValueError("target_pairwise_corr must have shape (n, n)")
@@ -99,7 +129,13 @@ class SystemSpec:
     def dependency_matrix(self) -> np.ndarray:
         """Return a symmetric dependency score matrix with diagonal zero."""
         if self.target_pairwise_corr is not None:
-            dep = self.target_pairwise_corr.copy()
+            if self.correlation_space == CORRELATION_SPACE_LATENT_GAUSSIAN:
+                dep = joint_to_corr(
+                    self.target_pairwise_joint_probs(),
+                    self.marginal_default_probs,
+                )
+            else:
+                dep = self.target_pairwise_corr.copy()
         elif self.target_joint_probs is not None:
             dep = joint_to_corr(self.target_joint_probs, self.marginal_default_probs)
         else:
@@ -112,7 +148,17 @@ class SystemSpec:
         if self.target_joint_probs is not None:
             return self.target_joint_probs.copy()
         if self.target_pairwise_corr is None:
-            return np.outer(self.marginal_default_probs, self.marginal_default_probs)
+            joint = np.outer(
+                self.marginal_default_probs,
+                self.marginal_default_probs,
+            )
+            np.fill_diagonal(joint, self.marginal_default_probs)
+            return joint
+        if self.correlation_space == CORRELATION_SPACE_LATENT_GAUSSIAN:
+            return latent_corr_to_joint(
+                self.target_pairwise_corr,
+                self.marginal_default_probs,
+            )
         return corr_to_joint(self.target_pairwise_corr, self.marginal_default_probs)
 
     def to_dict(self) -> dict[str, Any]:
@@ -167,6 +213,38 @@ def corr_to_joint(corr: np.ndarray, p: np.ndarray) -> np.ndarray:
             lower = max(0.0, p[i] + p[j] - 1.0)
             upper = min(p[i], p[j])
             joint[i, j] = float(np.clip(candidate, lower, upper))
+    return joint
+
+
+def latent_corr_to_joint(corr: np.ndarray, p: np.ndarray) -> np.ndarray:
+    """Threshold a latent Gaussian correlation into co-default probabilities."""
+    p = np.asarray(p, dtype=float)
+    corr = nearest_psd_correlation(np.asarray(corr, dtype=float))
+    thresholds = norm.ppf(np.clip(p, 1e-12, 1.0 - 1e-12))
+    joint = np.outer(p, p)
+    np.fill_diagonal(joint, p)
+    for i in range(len(p)):
+        for j in range(i + 1, len(p)):
+            if p[i] <= 0.0 or p[j] <= 0.0:
+                value = 0.0
+            elif p[i] >= 1.0:
+                value = p[j]
+            elif p[j] >= 1.0:
+                value = p[i]
+            else:
+                rho = float(np.clip(corr[i, j], -0.999, 0.999))
+                value = float(
+                    multivariate_normal.cdf(
+                        [thresholds[i], thresholds[j]],
+                        mean=[0.0, 0.0],
+                        cov=[[1.0, rho], [rho, 1.0]],
+                        maxpts=20_000,
+                        abseps=1e-9,
+                        releps=1e-9,
+                        rng=np.random.default_rng(0),
+                    )
+                )
+            joint[i, j] = joint[j, i] = value
     return joint
 
 

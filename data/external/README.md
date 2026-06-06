@@ -25,6 +25,10 @@ data/external/
 │   └── VIXCLS.csv               (CBOE VIX, daily)
 ├── ecb/
 │   └── ciss_euro_area.csv        (ECB CISS systemic-stress index, daily since 1980)
+├── banks/            # real bank-network anchor (part A) -> nodes + p_i + J_ij + correlation
+│   ├── gsib_roster.csv           (28 real G-SIB/large banks: ratings, total assets, region)
+│   ├── equity_corr.csv           (28x28 daily equity-return correlation matrix, 755 obs)
+│   └── equity_corr.meta.json     (tickers, window, obs count, source)
 ├── ratings/           # rating-agency PDs -> p_i
 │   ├── moodys_pd_by_rating.csv   (1-yr PD by rating; Moody's Exhibits 17 & 19)
 │   └── Moodys_Default_1920-2004.pdf
@@ -47,6 +51,23 @@ contain the 2008 GFC and the COVID-2020 shock:
 - **FDIC `failures_1980_2024.csv`** holds two real co-failure clusters: the S&L crisis
   (1988–1992, hundreds/yr) and the GFC (2009–2011) — the empirical right-tail to validate against.
 
+## The real exposure network (part A)
+
+`banks/` is the **real anchor** for the data-and-network layer. The roster supplies the
+nodes; `p_i` come from each bank's public rating via the Moody's PD table; the equity-return
+correlation is the genuine co-movement signal that drives community detection and the copula
+baselines; and the bilateral exposure matrix is **reconstructed** from per-node interbank
+totals (real bilateral data is confidential — the field-standard move). The whole pipeline
+lives in `src/systemic_risk/data_network/` and is built/validated by:
+
+```bash
+uv run python scripts/build_system_spec.py              # build + validate + render plot
+uv run python scripts/build_system_spec.py --refresh-equity   # re-fetch the correlation
+```
+
+See the repo-root `README.md` (§ *The real exposure network*) for the full pipeline and
+the end-to-end checks (round-trip, cluster stability, B/C/D conformance).
+
 ## Refresh
 
 ```bash
@@ -54,7 +75,9 @@ bash data/external/fetch.sh
 ```
 
 Idempotent (re-fetches & overwrites). Requirements: `bash`, `curl`, `python3`
-(+ optional `pdftotext` to re-extract the Moody's table).
+(+ optional `pdftotext` to re-extract the Moody's table). The `banks/equity_corr.csv`
+snapshot is refreshed separately via `scripts/build_system_spec.py --refresh-equity`
+(keyless Yahoo Finance; best-effort, the committed snapshot keeps the build reproducible).
 
 ### Known fetch caveats (all encoded in `fetch.sh`)
 

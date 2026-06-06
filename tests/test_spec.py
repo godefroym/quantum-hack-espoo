@@ -25,3 +25,12 @@ def test_spec_json_roundtrip(tmp_path) -> None:
     assert loaded.node_names == spec.node_names
     assert np.allclose(loaded.capital_buffers, spec.capital_buffers)
     assert np.allclose(loaded.target_pairwise_corr, spec.target_pairwise_corr)
+    assert loaded.correlation_space == "binary_default"
+
+
+def test_invalid_correlation_space_is_rejected() -> None:
+    spec = make_synthetic_system(n=12, seed=3).to_dict()
+    spec["metadata"]["correlation_space"] = "unknown"
+
+    with np.testing.assert_raises(ValueError):
+        SystemSpec.from_dict(spec)

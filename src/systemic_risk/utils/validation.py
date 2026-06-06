@@ -24,5 +24,6 @@ def nearest_psd_correlation(matrix: np.ndarray, epsilon: float = 1e-6) -> np.nda
     projected = (eigvecs * eigvals) @ eigvecs.T
     scale = np.sqrt(np.diag(projected))
     projected = projected / np.outer(scale, scale)
+    projected = np.clip(projected, -0.999, 0.999)
     np.fill_diagonal(projected, 1.0)
-    return np.clip(projected, -0.999, 0.999)
+    return projected

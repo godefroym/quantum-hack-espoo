@@ -63,6 +63,7 @@ def bank_asset_to_system_spec(
         metadata={
             "name": f"Generator view of {bank_asset_spec.metadata.get('name', 'bank-asset system')}",
             "source_model": "Huang bank-asset fire-sale adapter",
+            "correlation_space": "binary_default",
             "alpha_by_asset": alpha_by_asset.tolist(),
             "mean_default_probability": float(p.mean()),
             "marginal_method": (

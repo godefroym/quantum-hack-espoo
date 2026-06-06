@@ -29,7 +29,11 @@ from __future__ import annotations
 
 import numpy as np
 
-from systemic_risk.spec import SystemSpec, corr_to_joint
+from systemic_risk.spec import (
+    CORRELATION_SPACE_LATENT_GAUSSIAN,
+    SystemSpec,
+    joint_to_corr,
+)
 
 _EPS = 1e-9
 
@@ -297,8 +301,14 @@ def couplings_from_spec(
     if route == "correlation":
         if not has_corr:
             raise ValueError("spec has no target_pairwise_corr for the correlation route")
+        target_corr = spec.target_pairwise_corr
+        if spec.correlation_space == CORRELATION_SPACE_LATENT_GAUSSIAN:
+            target_corr = joint_to_corr(
+                spec.target_pairwise_joint_probs(),
+                spec.marginal_default_probs,
+            )
         j = couplings_from_correlation(
-            spec.target_pairwise_corr,
+            target_corr,
             spec.marginal_default_probs,
             method=correlation_method,
             coupling_cap=coupling_cap,
@@ -321,6 +331,4 @@ def couplings_from_spec(
 
 def calibration_summary_joint(spec: SystemSpec) -> np.ndarray:
     """Target co-default matrix implied by the spec (for diagnostics)."""
-    if spec.target_pairwise_corr is not None:
-        return corr_to_joint(spec.target_pairwise_corr, spec.marginal_default_probs)
     return spec.target_pairwise_joint_probs()

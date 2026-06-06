@@ -130,6 +130,44 @@ tests:     8 passed (existing) — no new tests yet
 4. **Later:** integrate documented-only data (V-Lab `p_i`, FR Y-15/BIS `J_ij`); wire the generator
    into `evaluation/harness.py` alongside the Bernoulli/copula baselines; QCBM loader → QAE.
 
+## Phase 3 — Part A: real data & exposure network ✅ (2026-06-06)
+
+Built the **data-and-network** layer: one real dataset → a frozen canonical spec → a legible
+community plot, consumed by B/C/D without loss. New package `src/systemic_risk/data_network/`.
+
+**Real dataset (the anchor).** `data/external/banks/gsib_roster.csv` — 28 real, publicly
+listed G-SIB / large banks (public S&P ratings + FY2023 total assets, per-row provenance).
+`data/external/banks/equity_corr.csv` — the **real 28×28 daily equity-return correlation
+matrix** (755 obs, 2021-06-01→2024-06-01) fetched from Yahoo Finance and committed for
+reproducibility (refresh: `scripts/build_system_spec.py --refresh-equity`).
+
+**Pipeline.** `sources/{roster,equity_returns,synthetic}` → `clean` (normalize/reconcile,
+rating→whole-letter) → `estimate` (marginals from Moody's Exhibit-17 PD table; correlation
+from equity returns; interbank asset/liability totals + Tier-1 buffers from total assets) →
+`reconstruct` (bilateral exposures, pluggable `max_entropy` RAS / `min_density` Anand-style;
+real bilateral data is confidential) → `cluster` (greedy modularity + perturbation-ARI
+stability) → `assemble` → `validate`.
+
+**Canonical spec.** `data_network/spec.py`: frozen `EmpiricalLayer` (ground truth) +
+`ReconstructedLayer` (swappable edges + method tag) + `FeatureSchema` (field meanings +
+per-consumer visibility) + `Provenance` (source, fit params, SHA-256 content hash), wrapped
+in `NetworkSpec` with `to_json`/`from_json` (lossless), `view_for(consumer)`, and
+`to_system_spec()` → the **existing flat `SystemSpec`** that B/C/D already consume (chosen to
+blend in without breaking the consumer contract).
+
+**End-to-end result** (`scripts/build_system_spec.py`):
+
+| Check | Result |
+|---|---|
+| Round-trip lossless (`NetworkSpec` + flat `SystemSpec`) | ✅ |
+| Communities | **3 stable** — N. America / Europe-UK-LatAm / Japan; mean ARI **0.955** |
+| B/C/D contract (copula fits, cascade runs, views enforce visibility) | ✅ |
+| Tests | `tests/test_data_network.py` — 19 new; **full suite 27 passed** |
+
+Artifacts in `outputs/data_network/`: `network_spec.json`, `system_spec.json`/`.npz`,
+`community_network.png`. Docs updated: `data/external/CATALOG.md`, `data/external/README.md`,
+repo-root `README.md` (§ *The real exposure network*).
+
 ## Reproduce the validation
 
 ```bash
