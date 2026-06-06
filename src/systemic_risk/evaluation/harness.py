@@ -29,12 +29,26 @@ class EvaluationHarness:
         severe_threshold: int | None = None,
         collapse_threshold: float = 0.5,
         seed: int = 123,
+        max_rounds: int | None = None,
+        lgd: float | np.ndarray = 1.0,
+        fail_on_equal: bool = False,
     ) -> None:
+        if n_samples <= 0:
+            raise ValueError("n_samples must be positive")
         self.spec = spec
         self.n_samples = n_samples
-        self.severe_threshold = severe_threshold or int(np.ceil(0.5 * spec.n))
+        self.severe_threshold = (
+            int(np.ceil(0.5 * spec.n))
+            if severe_threshold is None
+            else int(severe_threshold)
+        )
+        if not 0 <= self.severe_threshold <= spec.n:
+            raise ValueError("severe_threshold must lie between 0 and spec.n")
         self.collapse_threshold = collapse_threshold
         self.seed = seed
+        self.max_rounds = max_rounds
+        self.lgd = lgd
+        self.fail_on_equal = fail_on_equal
 
     def run(self, generators: list[ScenarioGenerator]) -> list[GeneratorRunResult]:
         results: list[GeneratorRunResult] = []
@@ -49,7 +63,10 @@ class EvaluationHarness:
             cascades = simulate_many(
                 samples,
                 self.spec,
+                max_rounds=self.max_rounds,
                 collapse_threshold=self.collapse_threshold,
+                lgd=self.lgd,
+                fail_on_equal=self.fail_on_equal,
             )
             metrics = compute_metrics(
                 samples,

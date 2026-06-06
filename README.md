@@ -56,7 +56,7 @@ src/systemic_risk/
     cluster / assemble    #   community detection + stability; layer assembly
     validate              #   round-trip + cluster-stability + B/C/D contract conformance
   generators/             # Bernoulli, copula, and entangled generators
-  simulator/              # deterministic fixed-point cascade engine
+  simulator/              # deterministic cascade, exogenous shocks, LGD, round diagnostics
   evaluation/             # metrics and comparison harness
   visualization/          # graph plots (incl. community plot) and crisis cards
   utils/
@@ -147,6 +147,10 @@ The flat spec records whether `target_pairwise_corr` is a latent Gaussian
 correlation or a binary default-event correlation. This keeps the Gaussian
 copula baseline and the entangled generator on the same marginal and pairwise
 default targets.
+
+The shared cascade keeps the original binary-scenario API and also supports
+named scenarios, direct exogenous losses, scalar or edge-level LGD, explicit
+failure rounds, cumulative-loss diagnostics, and convergence reporting.
 
 ### Optional classical fire-sale extension
 

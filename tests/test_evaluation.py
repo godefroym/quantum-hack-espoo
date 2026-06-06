@@ -17,4 +17,10 @@ def test_evaluation_harness_returns_comparison_rows() -> None:
     frame = harness.to_frame(results)
 
     assert len(results) == 2
-    assert {"generator", "mean_cascade_size", "p_severe_cascade"}.issubset(frame.columns)
+    assert {
+        "generator",
+        "mean_cascade_size",
+        "mean_cascade_depth",
+        "systemic_collapse_frequency",
+        "p_severe_cascade",
+    }.issubset(frame.columns)
