@@ -34,9 +34,19 @@ def run_block(
     shots: int = 4096,
     backend_name: str | None = None,
     optimization_level: int = 1,
+    initial_layout: list[int] | None = None,
+    dynamical_decoupling: bool = False,
+    measure_twirling: bool = False,
+    gate_twirling: bool = False,
     service: Any | None = None,
 ) -> IBMHardwareResult:
-    """Transpile and execute one fitted circuit block with IBM Runtime ``SamplerV2``."""
+    """Transpile and execute one fitted circuit block with IBM Runtime ``SamplerV2``.
+
+    ``initial_layout`` pins logical qubit ``k`` to physical qubit ``initial_layout[k]`` -- use it
+    to place an already-ordered entangler chain onto a hand-picked, low-error line so the router
+    inserts no SWAPs. ``dynamical_decoupling`` and ``measure_twirling``/``gate_twirling`` enable
+    cheap error suppression (idle-qubit DD, readout/gate Pauli twirling).
+    """
     if shots <= 0:
         raise ValueError("shots must be positive")
     if optimization_level not in {0, 1, 2, 3}:
@@ -74,10 +84,17 @@ def run_block(
     pass_manager = generate_preset_pass_manager(
         optimization_level=optimization_level,
         backend=backend,
+        initial_layout=initial_layout,
     )
     isa_circuit = pass_manager.run(circuit)
 
     sampler = SamplerV2(mode=backend)
+    if dynamical_decoupling:
+        sampler.options.dynamical_decoupling.enable = True
+        sampler.options.dynamical_decoupling.sequence_type = "XY4"
+    if measure_twirling or gate_twirling:
+        sampler.options.twirling.enable_measure = measure_twirling
+        sampler.options.twirling.enable_gates = gate_twirling
     job = sampler.run([isa_circuit], shots=shots)
     pub_result = job.result()[0]
     bitstrings = pub_result.data.meas.get_bitstrings()
