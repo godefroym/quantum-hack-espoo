@@ -5,10 +5,10 @@ from pathlib import Path
 
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from contagion.clustering import build_clustering_layout
-from contagion.visualization import (
+from systemic_risk.generators.quantum.layout import build_clustering_layout
+from systemic_risk.visualization import (
     plot_dependency_matrix,
     plot_entanglement_layout,
 )

@@ -1,5 +1,4 @@
-"""
-Clustering and entanglement-layout utilities for financial contagion projects.
+"""Deterministic clustering and entanglement-layout utilities.
 
 This module is intentionally deterministic and generator-agnostic.
 
@@ -17,10 +16,12 @@ Weak or cross-cluster dependencies remain classical.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Iterable, List, Literal, Optional, Sequence, Tuple
 
 import numpy as np
+
+from systemic_risk.spec import SystemSpec
 
 
 CorrelationMode = Literal["positive", "absolute"]
@@ -167,6 +168,13 @@ def build_clustering_layout(
         n_nodes=n,
         max_degree=max_entangled_degree,
     )
+    kept = {(pair.i, pair.j) for pair in entangled_pairs}
+    classical_pairs.extend(
+        replace(pair, relation="classical")
+        for pair in entangled_candidates
+        if (pair.i, pair.j) not in kept
+    )
+    classical_pairs.sort(key=lambda pair: (-pair.strength, pair.i, pair.j))
 
     layers = build_entanglement_layers(entangled_pairs, n_nodes=n)
 
@@ -385,6 +393,7 @@ def sparsify_entanglement_pairs(
     Keep entanglement layout sparse by limiting each node's entangled degree.
     """
 
+    _validate_pair_indices(pairs, n_nodes)
     sorted_pairs = sorted(pairs, key=lambda p: (-p.strength, p.i, p.j))
 
     if max_degree is None:
@@ -420,6 +429,7 @@ def build_entanglement_layers(
     Greedily schedule entanglement edges into non-overlapping layers.
     """
 
+    _validate_pair_indices(pairs, n_nodes)
     if max_edges_per_layer is not None and max_edges_per_layer <= 0:
         raise ValueError("max_edges_per_layer must be positive or None")
 
@@ -454,34 +464,33 @@ def build_entanglement_layers(
 def extract_arrays_from_spec(
     spec: Any,
 ) -> Tuple[Tuple[str, ...], np.ndarray, Optional[np.ndarray]]:
-    """
-    Convenience helper for integrating with your existing SystemSpec.
+    """Extract names, binary-default dependency, and exposures from a system spec."""
+    if isinstance(spec, SystemSpec):
+        return (
+            tuple(spec.node_names),
+            spec.dependency_matrix(),
+            spec.exposure_matrix.copy(),
+        )
 
-    This supports common shapes such as:
+    nodes = _get_field(spec, "node_names")
+    if nodes is None:
+        nodes = _get_field(spec, "nodes")
+    if nodes is None:
+        raise ValueError("Could not find 'node_names' or 'nodes' on spec.")
 
-        spec.nodes
-        spec.edges
-        spec.correlation_matrix
-
-    or dict equivalents:
-
-        spec["nodes"]
-        spec["edges"]
-        spec["correlation_matrix"]
-
-    Edges may be objects or dicts with source/target/weight-style fields.
-    """
-
-    nodes = _get_field(spec, "nodes")
-    corr = _get_field(spec, "correlation_matrix")
+    dependency_method = getattr(spec, "dependency_matrix", None)
+    corr = dependency_method() if callable(dependency_method) else None
+    if corr is None:
+        corr = _get_field(spec, "target_pairwise_corr")
+    if corr is None:
+        corr = _get_field(spec, "correlation_matrix")
 
     if corr is None:
         corr = _get_field(spec, "correlations")
 
     if corr is None:
         raise ValueError(
-            "Could not find correlation matrix on spec. Expected "
-            "'correlation_matrix' or 'correlations'."
+            "Could not find a dependency or correlation matrix on spec."
         )
 
     institutions = tuple(_node_name(node) for node in nodes)
@@ -553,6 +562,14 @@ def _normalise_exposure_matrix(exposure: np.ndarray) -> np.ndarray:
     np.fill_diagonal(score, 0.0)
 
     return score
+
+
+def _validate_pair_indices(pairs: Sequence[PairLink], n_nodes: int) -> None:
+    if n_nodes < 0:
+        raise ValueError("n_nodes must be non-negative")
+    for pair in pairs:
+        if pair.i == pair.j or min(pair.i, pair.j) < 0 or max(pair.i, pair.j) >= n_nodes:
+            raise ValueError("pair indices must reference two distinct nodes")
 
 
 def _get_field(obj: Any, name: str) -> Any:

@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import numpy as np
 
-from contagion.clustering import (
+from systemic_risk.generators.quantum.layout import (
     build_clustering_layout,
+    build_clustering_layout_from_spec,
     build_dependency_matrix,
     build_entanglement_layers,
     threshold_connected_components,
 )
+from systemic_risk.generators import EntangledBornMachineGenerator
+from systemic_risk.spec import SystemSpec
 
 
 def test_dependency_matrix_is_symmetric_and_zero_diagonal() -> None:
@@ -159,3 +162,70 @@ def test_max_entangled_degree_is_respected() -> None:
         degree[pair.j] += 1
 
     assert all(value <= 2 for value in degree.values())
+    covered_pairs = {
+        (pair.i, pair.j)
+        for pair in (*result.entangled_pairs, *result.classical_pairs)
+    }
+    assert len(covered_pairs) == 10
+
+
+def test_clustering_layout_accepts_canonical_system_spec() -> None:
+    spec = SystemSpec(
+        node_names=["A", "B", "C"],
+        node_types=["bank"] * 3,
+        exposure_matrix=np.array(
+            [
+                [0.0, 10.0, 0.0],
+                [8.0, 0.0, 1.0],
+                [0.0, 1.0, 0.0],
+            ]
+        ),
+        capital_buffers=np.ones(3),
+        marginal_default_probs=np.full(3, 0.1),
+        target_pairwise_corr=np.array(
+            [
+                [1.0, 0.9, 0.1],
+                [0.9, 1.0, 0.1],
+                [0.1, 0.1, 1.0],
+            ]
+        ),
+    )
+
+    result = build_clustering_layout_from_spec(
+        spec,
+        cluster_threshold=0.6,
+        entangle_threshold=0.7,
+    )
+
+    assert result.institutions == ("A", "B", "C")
+    assert [(pair.i, pair.j) for pair in result.entangled_pairs] == [(0, 1)]
+
+
+def test_clustered_layout_drives_born_machine_edges() -> None:
+    spec = SystemSpec(
+        node_names=["A", "B", "C", "D"],
+        node_types=["bank"] * 4,
+        exposure_matrix=np.zeros((4, 4)),
+        capital_buffers=np.ones(4),
+        marginal_default_probs=np.array([0.08, 0.10, 0.12, 0.14]),
+        target_pairwise_corr=np.array(
+            [
+                [1.0, 0.90, 0.10, 0.10],
+                [0.90, 1.0, 0.10, 0.10],
+                [0.10, 0.10, 1.0, 0.85],
+                [0.10, 0.10, 0.85, 1.0],
+            ]
+        ),
+    )
+    generator = EntangledBornMachineGenerator(
+        layout_strategy="clustered",
+        cluster_threshold=0.7,
+        entangle_threshold=0.8,
+        max_degree=1,
+    )
+
+    generator.fit(spec)
+
+    assert generator.layout_ is not None
+    assert generator.edges_ == [(0, 1), (2, 3)]
+    assert len(generator.layout_.entanglement_layers) == 1
