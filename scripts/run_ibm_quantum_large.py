@@ -25,7 +25,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from systemic_risk.generators import EntangledBornMachineGenerator
 from systemic_risk.generators.moments import empirical_moments
-from systemic_risk.generators.quantum.ibm_runtime import run_block
+from systemic_risk.generators.quantum.ibm_runtime import DEFAULT_HARDWARE_SHOTS, run_block
 from systemic_risk.spec import SystemSpec
 
 # Largest n whose 2^n statevector is comfortably materialisable for calibration + exact
@@ -37,8 +37,12 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--qubits", type=int, default=20)
     parser.add_argument("--max-degree", type=int, default=2, help="Max entanglers per qubit.")
-    parser.add_argument("--backend", default="ibm_boston", help="IBM backend name.")
-    parser.add_argument("--shots", type=int, default=4096)
+    parser.add_argument(
+        "--backend",
+        default=None,
+        help="IBM backend name. Defaults to the least-busy compatible QPU.",
+    )
+    parser.add_argument("--shots", type=int, default=DEFAULT_HARDWARE_SHOTS)
     parser.add_argument("--optimization-level", type=int, choices=range(4), default=3)
     parser.add_argument("--submit", action="store_true", help="Submit the metered IBM job.")
     parser.add_argument("--output-dir", type=Path, default=ROOT / "outputs" / "ibm_quantum")
@@ -92,22 +96,25 @@ def main() -> None:
 
     if not args.submit:
         seed = ideal_marginals if can_exact else targets.marginals
+        backend_option = f" --backend {args.backend}" if args.backend else ""
         print(
             json.dumps(
                 {
                     "status": "dry-run",
                     "n_qubits": block.size,
                     "entanglers": len(block.edges),
+                    "entanglement_depth": block.entanglement_depth,
                     "max_degree": args.max_degree,
                     "shots": args.shots,
-                    "backend": args.backend,
+                    "backend": args.backend or "least-busy compatible QPU",
                     "exact_ground_truth": can_exact,
                     "loader_marginal_rmse_vs_target": float(
                         np.sqrt(np.mean((seed - targets.marginals) ** 2))
                     ),
                     "next_command": (
                         "uv run --extra quantum python scripts/run_ibm_quantum_large.py "
-                        f"--qubits {args.qubits} --max-degree {args.max_degree} --submit"
+                        f"--qubits {args.qubits} --max-degree {args.max_degree}"
+                        f"{backend_option} --submit"
                     ),
                 },
                 indent=2,
@@ -129,6 +136,7 @@ def main() -> None:
         "n_qubits": args.qubits,
         "max_degree": args.max_degree,
         "entanglers": len(block.edges),
+        "entanglement_depth": block.entanglement_depth,
         "circuit_depth": result.circuit_depth,
         "two_qubit_gates": result.two_qubit_gates,
         "circuit_operations": result.circuit_operations,

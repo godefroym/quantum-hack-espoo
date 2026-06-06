@@ -102,7 +102,13 @@ def main() -> None:
 
     w = 0.4
     ax0.bar(banks - w / 2, ref_marg, w, label=ref_label, color="#4C72B0")
-    ax0.bar(banks + w / 2, observed.marginals, w, label="hardware (4096 shots)", color="#DD8452")
+    ax0.bar(
+        banks + w / 2,
+        observed.marginals,
+        w,
+        label=f"hardware ({report['shots']:,} shots)",
+        color="#DD8452",
+    )
     ax0.set_xlabel("bank"); ax0.set_ylabel("P(default)")
     ax0.set_title("Per-bank default probability"); ax0.legend(fontsize=8)
 

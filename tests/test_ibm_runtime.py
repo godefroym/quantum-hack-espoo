@@ -3,9 +3,16 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from systemic_risk.generators.quantum.ibm_runtime import _bitstrings_to_samples
+from systemic_risk.generators.quantum.ibm_runtime import (
+    DEFAULT_HARDWARE_SHOTS,
+    _bitstrings_to_samples,
+)
 from systemic_risk.generators.quantum.qiskit_backend import build_circuit
 from systemic_risk.spec import SystemSpec
+
+
+def test_default_hardware_shot_budget_is_one_hundred_thousand() -> None:
+    assert DEFAULT_HARDWARE_SHOTS == 100_000
 
 
 def test_ibm_bitstrings_are_returned_in_institution_column_order() -> None:

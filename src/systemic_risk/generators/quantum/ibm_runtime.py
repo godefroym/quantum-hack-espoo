@@ -17,6 +17,9 @@ import numpy as np
 from systemic_risk.generators.quantum.ansatz import EntangledCircuit
 
 
+DEFAULT_HARDWARE_SHOTS = 100_000
+
+
 @dataclass(frozen=True)
 class IBMHardwareResult:
     backend_name: str
@@ -31,7 +34,7 @@ class IBMHardwareResult:
 def run_block(
     block: EntangledCircuit,
     *,
-    shots: int = 4096,
+    shots: int = DEFAULT_HARDWARE_SHOTS,
     backend_name: str | None = None,
     optimization_level: int = 1,
     initial_layout: list[int] | None = None,

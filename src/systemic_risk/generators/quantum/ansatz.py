@@ -121,6 +121,35 @@ def dependency_edges(
     return edges
 
 
+def schedule_entanglement_edges(
+    edges: list[tuple[int, int]],
+) -> list[list[tuple[int, int]]]:
+    """Group entanglers into collision-free layers while preserving priority order.
+
+    Edges are considered in their existing strongest-first order and placed in the earliest
+    layer whose qubits are both free. Flattening the result before circuit construction lets
+    Qiskit execute each layer in parallel instead of inheriting an unnecessarily serial edge
+    order.
+    """
+    layers: list[list[tuple[int, int]]] = []
+    used_qubits: list[set[int]] = []
+    for edge in edges:
+        source, target = edge
+        if source == target:
+            raise ValueError("entanglement edges must connect distinct qubits")
+
+        for layer, used in zip(layers, used_qubits):
+            if source in used or target in used:
+                continue
+            layer.append(edge)
+            used.update(edge)
+            break
+        else:
+            layers.append([edge])
+            used_qubits.append(set(edge))
+    return layers
+
+
 @dataclass
 class EntangledCircuit:
     """Analytic angles for one block of the hardware-efficient (RY + CRY) ansatz.
@@ -141,6 +170,16 @@ class EntangledCircuit:
     @property
     def size(self) -> int:
         return len(self.qubits)
+
+    @property
+    def entanglement_depth(self) -> int:
+        """Two-qubit depth implied by the circuit's current entangler order."""
+        qubit_depth = np.zeros(self.size, dtype=int)
+        for source, target in self.edges:
+            layer = max(qubit_depth[source], qubit_depth[target]) + 1
+            qubit_depth[source] = layer
+            qubit_depth[target] = layer
+        return int(qubit_depth.max(initial=0))
 
 
 def _block_circuit(

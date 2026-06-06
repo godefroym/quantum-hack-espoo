@@ -32,7 +32,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from systemic_risk.data_network.assemble import build_system_spec
 from systemic_risk.generators.moments import empirical_moments, targets_from_spec
 from systemic_risk.generators.quantum import ansatz as A
-from systemic_risk.generators.quantum.ibm_runtime import run_block
+from systemic_risk.generators.quantum.ibm_runtime import DEFAULT_HARDWARE_SHOTS, run_block
 from systemic_risk.generators.quantum_born_machine import (
     _build_statevector,
     _statevector_block_moments,
@@ -42,7 +42,7 @@ from systemic_risk.generators.quantum_born_machine import (
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--backend", default="ibm_boston")
-    parser.add_argument("--shots", type=int, default=32768)
+    parser.add_argument("--shots", type=int, default=DEFAULT_HARDWARE_SHOTS)
     parser.add_argument("--optimization-level", type=int, choices=range(4), default=3)
     parser.add_argument("--submit", action="store_true")
     parser.add_argument("--output-dir", type=Path, default=ROOT / "outputs" / "ibm_quantum")

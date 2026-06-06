@@ -18,7 +18,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from systemic_risk.generators import EntangledBornMachineGenerator
 from systemic_risk.generators.moments import empirical_moments
-from systemic_risk.generators.quantum.ibm_runtime import run_block
+from systemic_risk.generators.quantum.ibm_runtime import DEFAULT_HARDWARE_SHOTS, run_block
 from systemic_risk.spec import SystemSpec
 
 
@@ -31,7 +31,7 @@ def parse_args() -> argparse.Namespace:
         type=int,
         help="Maximum number of entanglers touching each logical qubit.",
     )
-    parser.add_argument("--shots", type=int, default=4096)
+    parser.add_argument("--shots", type=int, default=DEFAULT_HARDWARE_SHOTS)
     parser.add_argument("--optimization-level", type=int, choices=range(4), default=1)
     parser.add_argument(
         "--submit",
@@ -47,7 +47,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def hardware_test_spec(n_qubits: int = 4) -> SystemSpec:
-    """Moderate-probability benchmark whose moments remain observable at a few thousand shots."""
+    """Moderate-probability benchmark whose moments remain observable on current hardware."""
     if n_qubits not in {4, 6, 8}:
         raise ValueError("hardware test supports 4, 6, or 8 qubits")
     p = np.linspace(0.08, 0.20, n_qubits)
