@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
+import pytest
+
+# Skip these tests if qiskit (optional dev dependency) is not installed in the environment.
+pytest.importorskip("qiskit")
 
 import numpy as np
 
