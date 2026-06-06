@@ -17,7 +17,6 @@ dependencies = [
 
 [project.optional-dependencies]
 app = [
-    "plotly>=5.20",
     "streamlit>=1.32",
 ]
 quantum = [
