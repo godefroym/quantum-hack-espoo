@@ -1,8 +1,17 @@
+import importlib.util
+from pathlib import Path
+
 import numpy as np
 import pytest
 
-from scripts.run_ibm_quantum_test import hardware_test_spec
 from systemic_risk.generators import EntangledBornMachineGenerator
+
+SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "run_ibm_quantum_test.py"
+SCRIPT_SPEC = importlib.util.spec_from_file_location("run_ibm_quantum_test", SCRIPT_PATH)
+assert SCRIPT_SPEC is not None and SCRIPT_SPEC.loader is not None
+SCRIPT_MODULE = importlib.util.module_from_spec(SCRIPT_SPEC)
+SCRIPT_SPEC.loader.exec_module(SCRIPT_MODULE)
+hardware_test_spec = SCRIPT_MODULE.hardware_test_spec
 
 
 @pytest.mark.parametrize("n_qubits", [4, 6, 8])
