@@ -1,0 +1,56 @@
+flowchart LR
+  Spec[spec.py]
+  BankAsset[bank_asset_spec.py]
+  Utils[utils/]
+  Models[models/]
+  Data[data/]
+  DataNet[data_network/]
+  Generators[generators/]
+  GenBase[generators/base.py]
+  Copula[generators/gaussian_copula.py]
+  Bern[generators/bernoulli.py]
+  IsingGen[generators/ising_boltzmann.py]
+  QBM[generators/quantum_born_machine.py]
+  QQuantum[generators/quantum/*]
+  Cascade[simulator/cascade.py]
+  Huang[simulator/huang.py]
+  Harness[evaluation/harness.py]
+  Metrics[evaluation/metrics.py]
+  Viz[visualization/]
+
+  Data --> Spec
+  Data --> BankAsset
+  DataNet --> Spec
+  DataNet --> Data
+  DataNet --> Generators
+  DataNet --> Cascade
+
+  Generators --> GenBase
+  Copula --> GenBase
+  Copula --> Spec
+  Bern --> GenBase
+  Bern --> Spec
+  IsingGen --> GenBase
+  IsingGen --> Models
+  IsingGen --> Spec
+  QBM --> GenBase
+  QBM --> QQuantum
+  QBM --> Spec
+  QQuantum --> Spec
+
+  Harness --> Generators
+  Harness --> Cascade
+  Harness --> Metrics
+  Harness --> Spec
+  Metrics --> Cascade
+  Metrics --> GenBase
+
+  Viz --> Cascade
+  Viz --> Spec
+  Viz --> QQuantum
+
+  Cascade --> Spec
+  Huang --> BankAsset
+  Huang --> Spec
+  Models --> Spec
+  Spec --> Utils
