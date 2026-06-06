@@ -1,59 +1,66 @@
+"""Fast MVP benchmark on the REAL-data foundation.
+
+A lightweight, CI-time entry point that exercises the whole pipeline on the real 28-bank network:
+build the spec, render the community network, run every generator (the classical baselines and the
+entangled Born machine) through the shared cascade engine, and write a comparison CSV plus a
+worst-case crisis card per generator.
+
+It is the quick smoke test / dashboard feed. For the rigorous, per-criterion head-to-head with the
+higher-order and tail discriminators and the n=54 scale story, run::
+
+    uv run python scripts/run_demonstration.py
+"""
+
 from __future__ import annotations
 
-import os
-from pathlib import Path
-import sys
+from _demo._bootstrap import bootstrap
 
-ROOT = Path(__file__).resolve().parents[1]
-MPL_CACHE = ROOT / "outputs" / ".matplotlib"
-XDG_CACHE = ROOT / "outputs" / ".cache"
-MPL_CACHE.mkdir(parents=True, exist_ok=True)
-XDG_CACHE.mkdir(parents=True, exist_ok=True)
-os.environ.setdefault("MPLCONFIGDIR", str(MPL_CACHE))
-os.environ.setdefault("XDG_CACHE_HOME", str(XDG_CACHE))
-sys.path.insert(0, str(ROOT / "src"))
+OUTPUTS = bootstrap()
 
-from systemic_risk.data import make_synthetic_system
-from systemic_risk.evaluation import EvaluationHarness
-from systemic_risk.generators import (
+import numpy as np  # noqa: E402
+
+from _demo._specs import real_full_spec  # noqa: E402
+from systemic_risk.evaluation import EvaluationHarness  # noqa: E402
+from systemic_risk.generators import (  # noqa: E402
     BernoulliGenerator,
-    EntangledPQCGenerator,
+    EntangledBornMachineGenerator,
     GaussianCopulaGenerator,
     StudentTCopulaGenerator,
 )
-from systemic_risk.visualization import plot_financial_network, save_crisis_card
+from systemic_risk.visualization import plot_community_network, save_crisis_card  # noqa: E402
 
 
 def main() -> None:
-    output_dir = ROOT / "outputs"
-    output_dir.mkdir(exist_ok=True)
+    bundle = real_full_spec()
+    spec = bundle.spec
+    print(f"Spec: {bundle.label}  (n={spec.n})")
+    if bundle.used_fallback:
+        print("  NOTE: real offline build unavailable; using the synthetic fallback.")
 
-    spec = make_synthetic_system(n=16, seed=7)
-    spec.save_json(output_dir / "synthetic_system.json")
-    plot_financial_network(spec, output_dir / "network.png")
+    spec.save_json(OUTPUTS / "real_system.json")
+    plot_community_network(
+        spec, OUTPUTS / "network.png",
+        title="Real 28-bank G-SIB exposure network — detected communities")
 
     generators = [
         BernoulliGenerator(),
         GaussianCopulaGenerator(),
         StudentTCopulaGenerator(df=4.0),
-        EntangledPQCGenerator(layers=2),
+        EntangledBornMachineGenerator(ansatz="entangled", calibrate=True),
     ]
-    harness = EvaluationHarness(spec, n_samples=2_000, seed=2026)
+    harness = EvaluationHarness(spec, n_samples=20_000, seed=2026)
     results = harness.run(generators)
     frame = harness.to_frame(results)
-    frame.to_csv(output_dir / "comparison.csv", index=False)
+    frame.to_csv(OUTPUTS / "comparison.csv", index=False)
 
-    print("\nCascade comparison")
+    print("\nCascade comparison (real network)")
     print(frame.to_string(index=False, float_format=lambda value: f"{value:0.4f}"))
 
     for result in results:
-        worst_idx = max(
-            range(len(result.cascade_results)),
-            key=lambda idx: result.cascade_results[idx].failure_count,
-        )
-        safe_name = result.generator_name.lower().replace(" ", "_").replace("-", "_")
+        worst_idx = int(np.argmax([c.failure_count for c in result.cascade_results]))
+        safe = result.generator_name.lower().replace(" ", "_").replace("-", "_")
         save_crisis_card(
-            output_dir / f"crisis_card_{safe_name}.md",
+            OUTPUTS / f"crisis_card_{safe}.md",
             spec,
             result.samples[worst_idx],
             result.cascade_results[worst_idx],
@@ -61,7 +68,8 @@ def main() -> None:
             worst_idx,
         )
 
-    print(f"\nSaved outputs to {output_dir}")
+    print(f"\nSaved outputs to {OUTPUTS}")
+    print("For the full per-criterion verdict, run: uv run python scripts/run_demonstration.py")
 
 
 if __name__ == "__main__":
