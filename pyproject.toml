@@ -1,12 +1,11 @@
-[build-system]
-requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "quantum-systemic-risk"
 version = "0.1.0"
 description = "Quantum-native scenario generation and classical contagion evaluation for systemic financial stress testing."
 readme = "README.md"
+authors = [
+    { name = "Alex Do", email = "alexxdo2004@gmail.com" }
+]
 requires-python = ">=3.10"
 dependencies = [
     "matplotlib>=3.8",
@@ -17,13 +16,27 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-app = ["plotly>=5.20", "streamlit>=1.32"]
-quantum = ["qiskit>=1.0"]
-dev = ["pytest>=8.0"]
+app = [
+    "plotly>=5.20",
+    "streamlit>=1.32",
+]
+quantum = [
+    "qiskit>=1.0",
+]
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[build-system]
+requires = ["uv_build>=0.9.11,<0.10.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "systemic_risk"
+module-root = "src"
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+]

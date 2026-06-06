@@ -1,47 +1,47 @@
 # Quantum Systemic Stress Scenario Discovery
 
-A quantum-assisted stress-testing MVP that uses an entanglement-structured parameterized circuit interface to generate correlated financial default scenarios, then evaluates systemic contagion with a classical cascade simulator.
+A quantum-assisted stress-testing MVP. An entanglement-structured generator proposes correlated financial default scenarios; a deterministic classical simulator evaluates the resulting contagion cascades. The quantum advantage has two surfaces: **generating** the correlated scenario distribution and **calculating** the tail risk over it.
 
 ## Problem
 
-Banks, insurers, funds, corporates, sovereigns, and market utilities are linked by directed financial exposures. Stress testing asks which plausible initial default scenarios can trigger severe downstream cascades. Hand-designed scenarios are useful but sparse; independent sampling misses correlated shocks; basic copulas are strong baselines but may not explore the same crisis tail.
+Banks, insurers, funds, corporates, sovereigns, and market utilities are linked by directed financial exposures. Stress testing asks which plausible initial default scenarios trigger severe downstream cascades. Hand-designed scenarios are sparse, independent sampling misses correlated shocks, and copulas are strong baselines but may not reach the same crisis tail — and the cascades that matter most are the deep-tail events you have almost no historical data on.
 
 ## Approach
 
-The MVP keeps the comparison honest:
+A generator-agnostic benchmark that keeps the comparison honest — same synthetic network, same marginal default probabilities, same pairwise dependency targets, same deterministic cascade simulator, **different scenario generators**:
 
-- Same synthetic financial network.
-- Same marginal default probabilities.
-- Same pairwise dependency targets.
-- Same deterministic classical contagion simulator.
-- Different scenario generators.
+- Independent Bernoulli baseline
+- Gaussian copula baseline
+- Student-t copula baseline
+- Entangled generator (quantum circuit Born machine target; classical Ising/Boltzmann sampler as the current stand-in)
 
-Implemented generators:
+> Headline: under matched marginals and pairwise dependencies, which generator reaches the most severe plausible contagion tails?
 
-- Independent Bernoulli baseline.
-- Gaussian copula baseline.
-- Student-t copula baseline.
-- `EntangledPQCGenerator`, a quantum-native scenario generator interface with a runnable Born-inspired fallback sampler for environments without Qiskit.
+## Where The Quantum Advantage Is
 
-Headline comparison:
+Each qubit is one entity (`|0>` survives, `|1>` initially defaults). `Ry` rotations encode individual default tendencies; entangling gates on the exposure/dependency graph make linked institutions sample from a non-factorized joint distribution.
 
-> Under matched marginals and pairwise dependencies, which generator samples the most severe plausible contagion tails?
+**Generation.** A quantum circuit Born machine samples `x` with probability `|<x|U(θ)|0>|²`. Its entangling layers encode a correlated, classically-hard-to-sample default distribution, and the *same* circuit doubles as the state-loader for the step below — so entanglement is load-bearing, not decorative.
 
-## What Is Quantum-Native
+**Calculation.** The cascade becomes a reversible oracle `|x>|0> -> |x>|severity(cascade(x)) >= s>`. Evaluated over the loaded distribution in superposition, it unlocks:
 
-Each qubit represents one financial entity:
+- **Quantum Amplitude Estimation** of tail risk — `P(severe cascade)` and CVaR of cascade size — with a quadratic speedup that *grows in the deep tail*: estimating a rare probability `a` to relative error `ε` costs about `O(1/(ε·√a))` queries versus `O(1/(ε²·a))` for classical Monte Carlo.
+- **Amplitude amplification** to surface rare severe scenarios in about `O(1/√a)` iterations (versus `O(1/a)` classical draws) — the basis for quantum worst-case scenario search.
 
-- `|0>` means the entity survives the initial shock.
-- `|1>` means the entity initially defaults.
+Unified pipeline:
 
-Single-qubit `Ry` rotations encode individual default tendencies. Entangling interactions follow the exposure/dependency graph, so linked institutions are sampled from a non-factorized joint distribution. The generated samples are binary default scenarios, not final cascade states.
+```text
+A = U_QCBM (load P(x)) -> U_severity (cascade oracle) -> mark severe
+  => QAE : quantify P(severe), CVaR        (quadratic, deep-tail amplified)
+  => AA  : discover the worst plausible scenario
+```
+
+**Implemented vs. designed.** The classical baselines, the cascade simulator, and the comparison harness are implemented today. The Born-machine loader and the QAE cascade oracle are the quantum layer this MVP is structured around.
 
 ## What This Does Not Claim
 
-- The quantum circuit does not simulate the full financial cascade.
-- Entanglement is not treated as literal financial contagion.
-- No quantum advantage is claimed.
-- The goal is to benchmark whether a quantum-native generator changes the tail of sampled systemic crises under the same evaluator.
+- A single cascade has no quantum speedup — the advantage is over the scenario distribution (estimation) and the search space (discovery).
+- The cascade is not quantum-simulated except as an oracle; reverse-stress-test optimization (QAOA) is heuristic; no quantum-linear-algebra (HHL) advantage is claimed.
 
 ## Project Structure
 
@@ -49,7 +49,7 @@ Single-qubit `Ry` rotations encode individual default tendencies. Entangling int
 src/systemic_risk/
   spec.py                 # SystemSpec validation and JSON/NPZ IO
   data/                   # deterministic synthetic network generation
-  generators/             # Bernoulli, copula, and PQC-style generators
+  generators/             # Bernoulli, copula, and entangled generators
   simulator/              # deterministic fixed-point cascade engine
   evaluation/             # metrics and comparison harness
   visualization/          # graph plots and crisis cards
@@ -64,31 +64,34 @@ notebooks/
 
 ## Run The MVP
 
+This project is managed with [uv](https://docs.astral.sh/uv/) ([install it](https://docs.astral.sh/uv/getting-started/installation/)). `uv` provisions the pinned Python interpreter (`.python-version`), creates the virtual environment, and installs the locked dependencies (`uv.lock`) for you.
+
 ```bash
-python -m pip install -r requirements.txt
-python scripts/run_mvp.py
+uv sync                              # core + dev dependencies into .venv
+uv run python scripts/run_mvp.py     # run the benchmark
 ```
 
-Expected outputs in `outputs/`:
+`uv run` executes inside the managed environment, so there is nothing to activate.
 
-- `network.png`
-- `comparison.csv`
-- one crisis card per generator
-- `synthetic_system.json`
+Expected outputs in `outputs/`: `network.png`, `comparison.csv`, one crisis card per generator, and `synthetic_system.json`.
 
 Run tests:
 
 ```bash
-pytest
+uv run pytest
 ```
 
-Optional Streamlit app:
+### Optional extras
+
+The app and quantum layers are opt-in extras, kept out of the base install:
 
 ```bash
-python -m pip install streamlit
-streamlit run app/streamlit_app.py
+# Streamlit + Plotly dashboard
+uv run --extra app streamlit run app/streamlit_app.py
+
+# Real Qiskit backend for the entangled generator (otherwise a classical fallback sampler is used)
+uv run --extra quantum python scripts/run_mvp.py
+
+# Install every extra into .venv
+uv sync --all-extras
 ```
-
-## Scientific Framing
-
-The quantum role is scenario generation, not direct cascade simulation. A generator proposes correlated initial defaults. The classical simulator then evaluates the true fixed-point cascade over the same exposure matrix and capital buffers for every generator. This makes the MVP generator-agnostic and keeps the benchmark focused on crisis-tail sampling rather than on changing the contagion engine.
