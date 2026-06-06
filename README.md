@@ -152,6 +152,26 @@ correlation or a binary default-event correlation. This keeps the Gaussian
 copula baseline and the entangled generator on the same marginal and pairwise
 default targets.
 
+### Scenario generation (GAM)
+
+Raw public CSVs (roster, ratings, equity returns, balance-sheet totals) are
+processed by the `scripts/build_system_spec.py` pipeline into a canonical
+`SystemSpec` (`outputs/data_network/system_spec.json` or `.npz`). The new
+Generative Augmentation Model (GAM) layer consumes that flat `SystemSpec`,
+calibrates a baseline Gaussian-copula to the `marginal_default_probs` and
+pairwise dependency targets, and synthesises binary initial-default scenarios
+in the same schema the simulator expects. The GAM also includes a simple
+exposure-aware augmentation step (one-step buffer breach) so generated
+scenarios reflect both statistical dependencies and exposure-driven stress.
+
+Use the provided CLI:
+
+```bash
+python -m scenario_generation.cli --system-spec outputs/data_network/system_spec.json \
+  --n-scenarios 10000 --out outputs/scenarios/gam_scenarios.csv --seed 0
+```
+
+
 The shared cascade keeps the original binary-scenario API and also supports
 named scenarios, direct exogenous losses, scalar or edge-level LGD, explicit
 failure rounds, cumulative-loss diagnostics, and convergence reporting.

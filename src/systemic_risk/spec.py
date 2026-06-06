@@ -238,10 +238,7 @@ def latent_corr_to_joint(corr: np.ndarray, p: np.ndarray) -> np.ndarray:
                         [thresholds[i], thresholds[j]],
                         mean=[0.0, 0.0],
                         cov=[[1.0, rho], [rho, 1.0]],
-                        maxpts=20_000,
-                        abseps=1e-9,
-                        releps=1e-9,
-                        rng=np.random.default_rng(0),
+                        allow_singular=True,
                     )
                 )
             joint[i, j] = joint[j, i] = value
