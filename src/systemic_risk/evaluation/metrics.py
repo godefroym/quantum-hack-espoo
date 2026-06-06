@@ -4,6 +4,11 @@ from typing import Any
 
 import numpy as np
 
+from systemic_risk.evaluation.joint_structure import (
+    cascade_count_cvar,
+    higher_order_structure,
+    tail_dependence,
+)
 from systemic_risk.generators.base import sample_diagnostics
 from systemic_risk.simulator.cascade import CascadeResult
 from systemic_risk.spec import SystemSpec
@@ -35,6 +40,9 @@ def compute_metrics(
         dtype=float,
     )
 
+    structure = higher_order_structure(samples)
+    dependence = tail_dependence(samples)
+
     return {
         "mean_cascade_size": float(failures.mean()),
         "mean_failure_fraction": float(failures.mean() / spec.n),
@@ -62,6 +70,16 @@ def compute_metrics(
             )
         ),
         "scenario_diversity": float(diagnostics.n_unique_scenarios / max(len(samples), 1)),
+        "coskewness_rms": structure.coskewness_rms,
+        "coskewness_max": structure.coskewness_max,
+        "excess_coskewness_rms": structure.excess_coskewness_rms,
+        "excess_coskewness_max": structure.excess_coskewness_max,
+        "aggregate_tail_dependence": dependence.aggregate_tail_dependence,
+        "pairwise_lower_tail_dependence": dependence.pairwise_lower_tail_dependence,
+        "excess_pairwise_lower_tail_dependence": dependence.excess_pairwise_lower_tail_dependence,
+        "joint_tail_excess": dependence.joint_tail_excess,
+        "cascade_count_cvar_95": cascade_count_cvar(failures, alpha=0.95),
+        "cascade_count_cvar_99": cascade_count_cvar(failures, alpha=0.99),
     }
 
 

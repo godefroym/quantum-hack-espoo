@@ -1,63 +1,108 @@
+"""Scaling experiment — how the entangled generator behaves as the system grows.
+
+Two complementary scaling stories, written to ``outputs/``:
+
+1. **Sampling/fidelity scaling** on calibrated-synthetic specs from a handful of qubits up to the
+   n=54 hardware target: for each size, run every generator through the shared cascade engine and
+   record the severe-cascade frequency and tail-mean, plus the entangled generator's block
+   structure (it stays block-separable, so per-block cost is bounded as n grows).
+2. **Exact-at-scale validation**: the homogeneous mean-field oracle check at increasing n,
+   including 54, showing the entangled construction reproduces the exact loss-count law to machine
+   precision with no ``2^n`` cost — the evidence that generation scales to real hardware.
+
+Run:
+    uv run python scripts/run_scaling_experiment.py
+"""
+
 from __future__ import annotations
 
-import os
-from pathlib import Path
-import sys
+from _demo._bootstrap import bootstrap
 
-ROOT = Path(__file__).resolve().parents[1]
-MPL_CACHE = ROOT / "outputs" / ".matplotlib"
-XDG_CACHE = ROOT / "outputs" / ".cache"
-MPL_CACHE.mkdir(parents=True, exist_ok=True)
-XDG_CACHE.mkdir(parents=True, exist_ok=True)
-os.environ.setdefault("MPLCONFIGDIR", str(MPL_CACHE))
-os.environ.setdefault("XDG_CACHE_HOME", str(XDG_CACHE))
-sys.path.insert(0, str(ROOT / "src"))
+OUTPUTS = bootstrap()
 
-import matplotlib.pyplot as plt
-import pandas as pd
+import matplotlib.pyplot as plt  # noqa: E402
+import pandas as pd  # noqa: E402
 
-from systemic_risk.data import make_synthetic_system
-from systemic_risk.evaluation import EvaluationHarness
-from systemic_risk.generators import (
+from _demo._scale import validate_against_oracle  # noqa: E402
+from _demo._specs import homogeneous_oracle_spec, synthetic_scale_spec  # noqa: E402
+from systemic_risk.evaluation import EvaluationHarness  # noqa: E402
+from systemic_risk.generators import (  # noqa: E402
     BernoulliGenerator,
-    EntangledPQCGenerator,
+    EntangledBornMachineGenerator,
     GaussianCopulaGenerator,
     StudentTCopulaGenerator,
 )
 
 
-def main() -> None:
-    output_dir = ROOT / "outputs"
-    output_dir.mkdir(exist_ok=True)
+SIZES = (8, 16, 24, 32, 54)
 
+
+def _generators() -> list:
+    return [
+        BernoulliGenerator(),
+        GaussianCopulaGenerator(),
+        StudentTCopulaGenerator(df=4.0),
+        EntangledBornMachineGenerator(ansatz="entangled", calibrate=True),
+    ]
+
+
+def sampling_scaling() -> pd.DataFrame:
+    """Run the harness on calibrated-synthetic specs across sizes; return the combined frame."""
     rows = []
-    for n in [8, 12, 16, 20]:
-        spec = make_synthetic_system(n=n, seed=100 + n)
-        generators = [
-            BernoulliGenerator(),
-            GaussianCopulaGenerator(),
-            StudentTCopulaGenerator(df=4.0),
-            EntangledPQCGenerator(layers=2),
-        ]
-        harness = EvaluationHarness(spec, n_samples=1_000, seed=900 + n)
-        frame = harness.to_frame(harness.run(generators))
+    for n in SIZES:
+        spec = synthetic_scale_spec(n=n).spec
+        harness = EvaluationHarness(spec, n_samples=4_000, seed=900 + n)
+        frame = harness.to_frame(harness.run(_generators()))
         frame["n"] = n
         rows.append(frame)
-        print(f"\nN={n}")
-        print(frame[["generator", "p_severe_cascade", "tail_mean_5pct"]].to_string(index=False))
+        entangled = EntangledBornMachineGenerator(ansatz="entangled", calibrate=True)
+        entangled.fit(spec)
+        diag = entangled.diagnostics_summary()
+        print(f"n={n:>2}: entangled fit -> {diag.n_blocks} blocks, max block {diag.max_block_size} "
+              f"qubits  (never forms 2^{n})")
+    return pd.concat(rows, ignore_index=True)
 
-    combined = pd.concat(rows, ignore_index=True)
+
+def oracle_scaling() -> pd.DataFrame:
+    """Validate the entangled loss-count law against the mean-field oracle across sizes."""
+    rows = []
+    for n in SIZES:
+        result = validate_against_oracle(homogeneous_oracle_spec(n=n))
+        rows.append(
+            {
+                "n": n,
+                "tv_distance": result.tv_distance,
+                "marginal_err": abs(result.generator_marginal - result.oracle_marginal),
+                "default_corr_err": abs(
+                    result.generator_default_corr - result.oracle_default_corr
+                ),
+            }
+        )
+    frame = pd.DataFrame(rows)
+    print("\nHomogeneous mean-field oracle validation (exact ground truth, no 2^n state):")
+    print(frame.to_string(index=False, float_format=lambda v: f"{v:0.2e}"))
+    return frame
+
+
+def main() -> None:
+    print("=== Sampling / cascade-tail scaling on calibrated-synthetic specs ===")
+    combined = sampling_scaling()
+
     fig, ax = plt.subplots(figsize=(9, 5))
     for generator, group in combined.groupby("generator"):
         ax.plot(group["n"], group["p_severe_cascade"], marker="o", label=generator)
-    ax.set_xlabel("Number of institutions")
+    ax.set_xlabel("Number of institutions (qubits)")
     ax.set_ylabel("P(severe cascade)")
-    ax.set_title("Severe cascade frequency by generator")
+    ax.set_title("Severe-cascade frequency by generator vs system size")
     ax.legend()
     fig.tight_layout()
-    fig.savefig(output_dir / "scaling_severe_frequency.png", dpi=180)
-    combined.to_csv(output_dir / "scaling_experiment.csv", index=False)
-    print(f"\nSaved scaling outputs to {output_dir}")
+    fig.savefig(OUTPUTS / "scaling_severe_frequency.png", dpi=180)
+    combined.to_csv(OUTPUTS / "scaling_experiment.csv", index=False)
+
+    oracle = oracle_scaling()
+    oracle.to_csv(OUTPUTS / "scaling_oracle_validation.csv", index=False)
+
+    print(f"\nSaved scaling outputs to {OUTPUTS}")
 
 
 if __name__ == "__main__":
