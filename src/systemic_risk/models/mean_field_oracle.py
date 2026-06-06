@@ -106,8 +106,9 @@ class MeanFieldIsingOracle:
             def marginal_residual(h: float) -> float:
                 return cls(n=n, field=h, coupling=coupling).marginal_default_prob() - target_marginal
 
+            # The marginal is monotone increasing in h; [-60, 60] brackets every feasible
+            # target (at h = +-60 the marginal is already 0 / 1 to machine precision).
             lo, hi = -60.0, 60.0
-            # Expand until the residual brackets zero (it is monotone increasing in h).
             f_lo, f_hi = marginal_residual(lo), marginal_residual(hi)
             if f_lo > 0:
                 return lo
@@ -123,19 +124,16 @@ class MeanFieldIsingOracle:
             h = field_for_marginal(coupling)
             return cls(n=n, field=h, coupling=coupling).default_correlation() - target_default_corr
 
-        # Default correlation increases with the coupling. Bracket J.
+        # Default correlation increases with the coupling. Bracket J, expanding the open end
+        # until the residual changes sign, then solve.
         lo, hi = 0.0, 0.01
-        f_lo = corr_residual(lo)
         if target_default_corr < 0:
             lo, hi = -5.0, 0.0
-            f_hi = corr_residual(hi)
             while corr_residual(lo) > 0 and lo > -200.0:
                 lo *= 2.0
         else:
-            f_hi = corr_residual(hi)
-            while f_hi < 0 and hi < 200.0:
+            while corr_residual(hi) < 0 and hi < 200.0:
                 hi *= 1.7
-                f_hi = corr_residual(hi)
         coupling = brentq(corr_residual, lo, hi, xtol=tol, maxiter=max_iter)
         h = field_for_marginal(coupling)
         return cls(n=n, field=h, coupling=coupling)

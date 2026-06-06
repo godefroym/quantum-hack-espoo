@@ -40,17 +40,13 @@ def sample_diagnostics(samples: np.ndarray) -> GeneratorDiagnostics:
     n_samples, n = samples.shape
     marginals = samples.mean(axis=0)
     pairwise_joint = (samples.T @ samples) / max(n_samples, 1)
-    pairwise_corr = np.eye(n)
-    for i in range(n):
-        for j in range(i + 1, n):
-            denom = np.sqrt(
-                marginals[i]
-                * (1 - marginals[i])
-                * marginals[j]
-                * (1 - marginals[j])
-            )
-            corr = 0.0 if denom == 0 else (pairwise_joint[i, j] - marginals[i] * marginals[j]) / denom
-            pairwise_corr[i, j] = pairwise_corr[j, i] = float(np.clip(corr, -1.0, 1.0))
+    cov = pairwise_joint - np.outer(marginals, marginals)
+    std = np.sqrt(marginals * (1.0 - marginals))
+    denom = np.outer(std, std)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        pairwise_corr = np.where(denom > 0, cov / denom, 0.0)
+    np.clip(pairwise_corr, -1.0, 1.0, out=pairwise_corr)
+    np.fill_diagonal(pairwise_corr, 1.0)
     unique = np.unique(samples, axis=0).shape[0]
     return GeneratorDiagnostics(
         sampled_marginals=marginals,
