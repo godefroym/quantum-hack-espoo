@@ -30,8 +30,11 @@ statevector, see ``tests/test_quantum_born_machine.py``):
   the correlations here are genuine amplitude structure across basis strings.
 * **Systemic tail.** A GHZ-style superposition of two homogeneous product states
   ``sqrt(w)|A>^{(x)n} + sqrt(1-w)|B>^{(x)n}`` places coherent amplitude on the
-  high-Hamming-weight "everyone defaults" strings; that joint-tail mass is
-  entanglement a correlation-matched Gaussian copula cannot reproduce.
+  high-Hamming-weight "everyone defaults" strings, concentrating co-default mass far
+  above the independence baseline -- a rare common-shock mode. (Its *higher-order*
+  structure is tunable via the benign/systemic split rather than pinned by the spec, so
+  the robust beyond-second-order claim is carried by the homogeneous symmetric loader; see
+  :class:`SymmetricIsingLoader` and ``tests/test_quantum_born_machine.py``.)
 """
 
 from __future__ import annotations
@@ -332,8 +335,10 @@ class GHZBlend:
     product state (each institution defaults with prob ``benign``) and a systemic one (prob
     ``systemic``). The coherent superposition is genuine entanglement: it concentrates
     amplitude on the all-survive and all-default strings, so the number-of-defaults law is the
-    closed form below -- exact at *any* ``n``, including 54 -- and carries lower-tail
-    dependence no second-order (Gaussian-copula) model can.
+    closed form below -- exact at *any* ``n``, including 54. The all-default mode sits many
+    orders of magnitude above the independence baseline; the size of the resulting
+    higher-order structure is set by the benign/systemic split (``benign_fraction``), not
+    fixed by the spec's marginal and correlation alone.
     """
 
     n: int
