@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import csv
 import numpy as np
-from systemic_risk.data.loaders import load_system_spec
+from scenario_generation.io import load_system_spec
 from systemic_risk.simulator.cascade import simulate_many
 from systemic_risk.spec import joint_to_corr
 

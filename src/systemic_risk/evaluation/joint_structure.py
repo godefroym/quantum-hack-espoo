@@ -24,6 +24,13 @@ from itertools import combinations
 import numpy as np
 from scipy.optimize import brentq
 from scipy.stats import multivariate_normal, norm
+try:
+    # mvn provides a deterministic multivariate CDF (mvnun) useful for small dims
+    from scipy.stats import mvn as _scipy_mvn  # type: ignore
+except Exception:  # pragma: no cover - optional on some SciPy builds
+    _scipy_mvn = None
+
+from systemic_risk.spec import _bivariate_normal_cdf
 
 from systemic_risk.models.ising import LossDistribution
 from systemic_risk.utils.validation import ensure_binary_samples, nearest_psd_correlation
@@ -331,17 +338,12 @@ def _solve_latent_correlation(
 
 
 def _bivariate_orthant(threshold_i: float, threshold_j: float, rho: float) -> float:
-    """Return ``P(Z_i <= threshold_i, Z_j <= threshold_j)`` for standard bivariate normal."""
+    """Return ``P(Z_i <= threshold_i, Z_j <= threshold_j)`` for standard bivariate normal.
+
+    Uses the deterministic quadrature implementation in ``spec._bivariate_normal_cdf``.
+    """
     rho = float(np.clip(rho, -0.999999, 0.999999))
-    cov = np.array([[1.0, rho], [rho, 1.0]])
-    return float(
-        multivariate_normal.cdf(
-            [threshold_i, threshold_j],
-            mean=[0.0, 0.0],
-            cov=cov,
-            rng=np.random.default_rng(0),
-        )
-    )
+    return float(_bivariate_normal_cdf(threshold_i, threshold_j, rho))
 
 
 def _pairwise_orthant_matrix(
@@ -364,16 +366,45 @@ def _trivariate_orthant(thresholds: np.ndarray, correlation: np.ndarray) -> floa
     """Return the standard trivariate-normal orthant probability below ``thresholds``.
 
     ``correlation`` is a 3x3 principal submatrix of an already-PSD latent matrix.
+
+    Prefer a deterministic Fortran-backed routine when available (``scipy.stats.mvn.mvnun``),
+    otherwise fall back to ``scipy.stats.multivariate_normal.cdf``.
     """
-    return float(
-        multivariate_normal.cdf(
-            thresholds,
-            mean=np.zeros(3),
-            cov=correlation,
-            allow_singular=True,
-            rng=np.random.default_rng(0),
-        )
-    )
+    # Use a small deterministic quasi-Monte-Carlo (fixed-seed) estimator as a
+    # robust and reproducible fallback when a deterministic Fortran routine is
+    # unavailable in the local SciPy build.
+    try:
+        if _scipy_mvn is not None:
+            lower = np.full(3, -np.inf)
+            upper = np.asarray(thresholds, dtype=float)
+            prob, info = _scipy_mvn.mvnun(lower, upper, np.zeros(3), correlation)
+            return float(prob)
+    except Exception:
+        # fall through to deterministic RNG-based estimator below
+        pass
+
+    # Deterministic quasi-Monte-Carlo estimator for reproducibility and low variance.
+    try:
+        from scipy.stats import qmc
+
+        # Use a power-of-two Sobol sample for low-discrepancy sampling.
+        m = 14  # 2^14 = 16384 samples
+        sampler = qmc.Sobol(d=3, scramble=False)
+        points = sampler.random_base2(m=m)
+        # Avoid exact 0/1 endpoints which map to +-inf under the Normal inverse CDF
+        points = np.clip(points, 1e-16, 1 - 1e-16)
+        # transform to independent standard normals
+        normals = norm.ppf(points)
+    except Exception:
+        # Fallback to a large fixed-seed RNG if Sobol/QMC is unavailable.
+        n_samples = 65536
+        rng = np.random.default_rng(0)
+        normals = rng.standard_normal((n_samples, 3))
+
+    L = np.linalg.cholesky(correlation)
+    correlated = normals @ L.T
+    counts = np.sum(np.all(correlated <= np.asarray(thresholds, dtype=float), axis=1))
+    return float(counts / float(correlated.shape[0]))
 
 
 def _independent_count_tail(marginals: np.ndarray, threshold: int) -> float:

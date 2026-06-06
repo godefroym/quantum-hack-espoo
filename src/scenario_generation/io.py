@@ -5,11 +5,18 @@ import csv
 import numpy as np
 
 from systemic_risk.spec import SystemSpec
-from systemic_risk.data.loaders import load_system_spec as _load_spec
 
 
 def load_system_spec(path: str | Path) -> SystemSpec:
-    return _load_spec(path)
+    """Load a `SystemSpec` from a JSON or NPZ file.
+
+    Falls back to `SystemSpec.load_json` for other file extensions.
+    """
+    p = Path(path)
+    if p.suffix == ".npz":
+        return SystemSpec.load_npz(p)
+    # default: attempt JSON load
+    return SystemSpec.load_json(p)
 
 
 def save_scenarios(path: str | Path, samples: np.ndarray, node_names: list[str]) -> None:
