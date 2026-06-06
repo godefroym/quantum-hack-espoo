@@ -42,20 +42,30 @@ def correlation_from_equity(
 
 
 def interbank_totals(
-    nodes: tuple[CleanNode, ...], interbank_share: float = 0.20
+    nodes: tuple[CleanNode, ...],
+    interbank_share: float = 0.20,
+    corporate_borrow_share: float = 0.30,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Interbank asset (row) and liability (col) totals from total assets.
+    """Asset (row) and liability (col) totals from total assets, by node class.
 
-    Each node's interbank assets are ``interbank_share`` of its total assets (Gai-Kapadia /
-    Basel: interbank ~20% of the balance sheet). Liabilities are set to the same per-node
-    scale and then rescaled so the system asset total equals the liability total (required
-    for a feasible bilateral reconstruction).
+    - **Financial** nodes (bank/insurer/fund/sovereign/CCP) both lend and borrow in the
+      interbank market: assets = liabilities = ``interbank_share`` of total assets
+      (Gai-Kapadia / Basel: interbank ~20% of the balance sheet).
+    - **Corporates** borrow from banks but do not lend to them, so their interbank *assets*
+      are ~0 and their *liabilities* are ``corporate_borrow_share`` of total assets (bank
+      loans / bonds owed). This creates directed bank -> corporate exposures: a bank loses if
+      a corporate it lent to defaults, but corporates are not creditors of the system.
+
+    Liabilities are finally rescaled so the system asset total equals the liability total
+    (required for a feasible bilateral reconstruction): the banks' lending capacity is shared
+    across both interbank and corporate borrowers.
     """
     ta = np.array([node.total_assets_usd_bn for node in nodes], dtype=float)
-    assets = interbank_share * ta
-    liabilities = interbank_share * ta
+    is_corp = np.array([node.node_type == "corporate" for node in nodes])
+    assets = np.where(is_corp, 0.0, interbank_share * ta)
+    liabilities = np.where(is_corp, corporate_borrow_share * ta, interbank_share * ta)
     total = assets.sum()
-    if liabilities.sum() > 0:
+    if liabilities.sum() > 0 and total > 0:
         liabilities = liabilities * (total / liabilities.sum())
     return assets, liabilities
 

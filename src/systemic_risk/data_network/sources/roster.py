@@ -36,13 +36,14 @@ DEFAULT_ROSTER_CSV = (
 
 @dataclass(frozen=True)
 class RosterRow:
-    """One real institution in the anchor roster."""
+    """One real institution in the anchor roster (a bank or a non-financial corporate)."""
 
     bank_id: str
     name: str
     ticker: str
     country: str
     region: str
+    node_type: str          # SystemSpec class: "bank" | "corporate" | ...
     business_type: str
     sp_rating: str
     total_assets_usd_bn: float
@@ -104,6 +105,8 @@ def load_roster(path: str | Path | None = None) -> tuple[RosterRow, ...]:
                     ticker=ticker,
                     country=line["country"].strip(),
                     region=line["region"].strip(),
+                    # node_type is optional for backward compatibility with older rosters.
+                    node_type=(line.get("node_type") or "bank").strip() or "bank",
                     business_type=line["business_type"].strip(),
                     sp_rating=line["sp_rating"].strip(),
                     total_assets_usd_bn=assets,

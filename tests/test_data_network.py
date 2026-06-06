@@ -49,6 +49,32 @@ def test_reconcile_orders_and_buckets() -> None:
     assert all(n.rating_bucket in {"AAA", "AA", "A", "BBB", "BB", "B", "CCC"} for n in nodes)
 
 
+def test_roster_includes_banks_and_corporates() -> None:
+    rows = load_roster()
+    types = {r.node_type for r in rows}
+    assert "bank" in types and "corporate" in types
+    assert sum(r.node_type == "corporate" for r in rows) >= 5
+
+
+def test_corporates_borrow_but_do_not_lend(network_spec: NetworkSpec) -> None:
+    # Directed real-economy edges: banks lend to corporates; corporates are not creditors.
+    system = network_spec.to_system_spec()
+    types = [
+        network_spec.empirical.node_attributes[i]["node_type"]
+        for i in network_spec.empirical.node_ids
+    ]
+    W = system.exposure_matrix
+    corp = [i for i, t in enumerate(types) if t == "corporate"]
+    assert corp, "expected corporates in the real network"
+    assert np.allclose(W[corp].sum(), 0.0)   # corporates have no outgoing exposures (don't lend)
+    assert W[:, corp].sum() > 0.0            # banks are exposed to corporates (they lend)
+
+
+def test_effective_exposure_is_directed(network_spec: NetworkSpec) -> None:
+    W = network_spec.to_system_spec().exposure_matrix
+    assert not np.allclose(W, W.T)           # risk-adjusted effective loss is asymmetric
+
+
 # --- reconstruction honours the marginals ------------------------------------ #
 def test_max_entropy_matches_marginals() -> None:
     assets = np.array([3.0, 2.0, 5.0, 1.0])

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from systemic_risk.edge_metrics import EdgeMetricConfig, compute_edge_metrics
 from systemic_risk.spec import SystemSpec
 from systemic_risk.utils.ratings import load_rating_pd
 
@@ -376,6 +377,18 @@ def make_scalable_system(n: int = 54, seed: int = 11) -> SystemSpec:
     # --- Target pairwise correlation consistent with exposure + cluster structure ---
     corr = _exposure_correlation(W, clusters, node_types)
 
+    # --- Risk-adjust the directed exposures into an effective-loss matrix ---
+    # W above is the gross *notional* claim (creditor i on debtor j). The cascade should
+    # propagate the loss that actually transmits, so we modulate each directed edge by
+    # loss-given-default, maturity/rollover stress, wrong-way risk, and substitutability
+    # (see systemic_risk.edge_metrics). The single-counterparty cap stays on the notional
+    # (it is a regulatory exposure limit); the effective loss may exceed it under stress.
+    notional = W.copy()
+    edge = compute_edge_metrics(
+        notional, node_types, ratings=ratings, correlation=corr, config=EdgeMetricConfig()
+    )
+    W = edge.effective
+
     spec_grade = p[np.isin(ratings, ["BB", "B", "CCC", "CC", "C"])]
     metadata = {
         "name": "Scalable systemic stress network",
@@ -393,6 +406,19 @@ def make_scalable_system(n: int = 54, seed: int = 11) -> SystemSpec:
         "interbank_asset_share_mean": round(float(interbank_share.mean()), 4),
         "capital_buffer_ratio_mean": round(float(buffer_ratio.mean()), 4),
         "single_counterparty_cap_frac_tier1": 0.25,
+        "exposure_matrix_is": "effective_loss (notional risk-adjusted by edge_metrics)",
+        "notional_exposure_matrix": notional.tolist(),
+        "edge_model": {
+            "channels": ["lgd_recovery", "maturity_rollover", "wrong_way", "substitutability"],
+            "directed": True,
+            **EdgeMetricConfig().to_summary(),
+            "mean_recovery": round(float(edge.recovery[notional > 0].mean()), 4)
+            if np.any(notional > 0) else None,
+            "mean_maturity_stress": round(float(edge.maturity_stress[notional > 0].mean()), 4)
+            if np.any(notional > 0) else None,
+            "effective_to_notional_ratio": round(
+                float(edge.effective.sum() / notional.sum()), 4) if notional.sum() > 0 else None,
+        },
         "type_counts": {t: int(node_types.count(t)) for t in sorted(set(node_types))},
         "pd_source": _RATING_PD_SOURCE,
         "calibration_sources": [

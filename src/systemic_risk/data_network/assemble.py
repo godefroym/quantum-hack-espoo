@@ -27,7 +27,9 @@ from systemic_risk.data_network.spec import (
     FeatureSchema,
     NetworkSpec,
     Provenance,
+    ReconstructedLayer,
 )
+from systemic_risk.edge_metrics import EdgeMetricConfig, compute_edge_metrics
 from systemic_risk.spec import SystemSpec
 
 
@@ -87,13 +89,36 @@ def build_network_spec(
     )
 
     # --- reconstructed layer ---------------------------------------------- #
+    # 1) reconstruct the gross *notional* bilateral matrix (cap on notional = regulatory
+    #    large-exposure limit); 2) risk-adjust each directed edge into an effective-loss
+    #    matrix via the shared edge-metrics module (LGD/recovery, maturity/rollover,
+    #    wrong-way, substitutability). The cascade consumes the effective matrix.
     cap = single_counterparty_cap_frac * buffers
-    reconstructed = reconstruct_mod.reconstruct(
+    notional_layer = reconstruct_mod.reconstruct(
         reconstruction_method,
         assets,
         liabilities,
         single_counterparty_cap=cap,
         record={"single_counterparty_cap_frac": single_counterparty_cap_frac},
+    )
+    notional = notional_layer.edge_matrix
+    edge_cfg = EdgeMetricConfig()
+    edge = compute_edge_metrics(
+        notional,
+        [node.node_type for node in nodes],
+        ratings=[node.sp_rating for node in nodes],
+        correlation=corr,
+        config=edge_cfg,
+    )
+    reconstructed = ReconstructedLayer(
+        edge_matrix=edge.effective,
+        method=f"{reconstruction_method}+risk_adjusted",
+        method_params={
+            **dict(notional_layer.method_params),
+            **edge_cfg.to_summary(),
+            "exposure_is": "effective_loss",
+            "edge_channels": "lgd_recovery|maturity_rollover|wrong_way|substitutability",
+        },
     )
 
     # --- communities ------------------------------------------------------- #
@@ -102,9 +127,12 @@ def build_network_spec(
     )
     clusters = tuple(int(c) for c in report.labels)
 
+    n_corporate = sum(node.node_type == "corporate" for node in nodes)
+    eff_ratio = (float(edge.effective.sum() / notional.sum())
+                 if notional.sum() > 0 else None)
     provenance = Provenance(
         source=(
-            "Real anchor: G-SIB / large-bank roster "
+            "Real anchor: roster of large banks + non-financial corporates "
             "(data/external/banks/gsib_roster.csv). "
             f"Marginals: {pd_source}. Correlation: {ec.source}."
         ),
@@ -116,6 +144,8 @@ def build_network_spec(
             "cluster_threshold": cluster_threshold,
             "correlation_space": "latent_gaussian",
             "n_nodes": len(node_ids),
+            "n_corporates": int(n_corporate),
+            "n_financials": int(len(node_ids) - n_corporate),
             "n_communities": report.n_communities,
             "modularity": round(report.modularity, 4),
             "cluster_mean_ari": round(report.mean_ari, 4),
@@ -123,10 +153,15 @@ def build_network_spec(
             "cluster_stable": bool(report.stable),
             "equity_window": f"{ec.start}..{ec.end}",
             "equity_n_obs": ec.n_obs,
+            "edge_channels": "lgd_recovery|maturity_rollover|wrong_way|substitutability",
+            "effective_to_notional_ratio": round(eff_ratio, 4) if eff_ratio else None,
+            **edge_cfg.to_summary(),
         },
         notes=(
-            "Bilateral exposures are reconstructed (real bilateral data is confidential); "
-            "marginals and equity correlation are empirical."
+            "Bilateral exposures are reconstructed (real bilateral data is confidential) and "
+            "risk-adjusted into an effective-loss matrix (LGD/maturity/wrong-way/"
+            "substitutability); marginals and equity correlation are empirical. Corporates "
+            "borrow from banks but do not lend interbank (directed bank->corporate edges)."
         ),
     )
 

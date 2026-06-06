@@ -43,7 +43,38 @@ A = U_QCBM (load P(x)) -> U_severity (cascade oracle) -> mark severe
 
 ## Run
 
+<<<<<<< HEAD
 This project is managed with [uv](https://docs.astral.sh/uv/) ([install it](https://docs.astral.sh/uv/getting-started/installation/)), which provisions the pinned interpreter, virtual environment, and locked dependencies for you. `uv run` executes inside that environment — nothing to activate.
+=======
+```text
+src/systemic_risk/
+  spec.py                 # flat SystemSpec validation and JSON/NPZ IO (the B/C/D contract)
+  edge_metrics.py         # directed risk-adjusted edge weights (LGD, maturity, wrong-way, …)
+  data/                   # deterministic synthetic network generation
+  data_network/           # PART A: real data -> canonical layered NetworkSpec -> SystemSpec
+    sources/              #   roster (real anchor), equity_returns (Yahoo), synthetic (scaling)
+    clean / estimate      #   normalize/reconcile; marginals, correlation, balance-sheet totals
+    reconstruct           #   bilateral exposures: max_entropy (RAS) | min_density (pluggable)
+    cluster / assemble    #   community detection + stability; layer assembly
+    validate              #   round-trip + cluster-stability + B/C/D contract conformance
+  generators/             # Bernoulli, copula, and entangled generators
+  simulator/              # deterministic cascade, exogenous shocks, LGD, round diagnostics
+  evaluation/             # metrics and comparison harness
+  visualization/          # graph plots (incl. community plot) and crisis cards
+  utils/
+scripts/
+  run_mvp.py
+  run_scaling_experiment.py
+  build_system_spec.py    # PART A end-to-end: build + validate + render the real network
+tests/
+app/
+notebooks/
+```
+
+## Run The MVP
+
+This project is managed with [uv](https://docs.astral.sh/uv/) ([install it](https://docs.astral.sh/uv/getting-started/installation/)). `uv` provisions the pinned Python interpreter (`.python-version`), creates the virtual environment, and installs the locked dependencies (`uv.lock`) for you.
+>>>>>>> 2e4f428 (Current state of data prep)
 
 ```bash
 uv sync                                      # core + dev dependencies
@@ -83,7 +114,53 @@ Outputs land in `outputs/data_network/`: `network_spec.json` (the layered `Netwo
 - **Edges** — bilateral exposures are **reconstructed** from per-node interbank totals (real bilateral matrices are confidential — the field-standard move), pluggable between `max_entropy` (RAS/IPF, dense) and `min_density` (Anand-style, sparse).
 - **Communities** — greedy-modularity detection on the correlation graph; the committed snapshot yields three stable communities (North America, Europe/UK/LatAm, Japan; mean ARI ≈ 0.96 under perturbation).
 
+<<<<<<< HEAD
 The pipeline lives in `src/systemic_risk/data_network/`; see that package's README for the layered `NetworkSpec` (frozen empirical layer + swappable reconstructed layer + provenance) and `data/external/CATALOG.md` for full per-dataset provenance and licensing. End-to-end checks (round-trip, cluster stability, downstream contract):
+=======
+```text
+roster (28 banks + 10 corporates) ─┐
+equity returns (Yahoo) ────────────┼─► estimate ─► reconstruct ─► risk-adjust ─► cluster ─► assemble ─► validate
+Moody's PD table       ────────────┘   p_i, corr,   bilateral W   effective W   communities  NetworkSpec  round-trip,
+                                       totals       (max-entropy   (LGD/maturity (+ stability)  ──► flat   stability,
+                                                     | min-density) /wrong-way…)                 SystemSpec  B/C/D
+```
+
+- **Nodes** — a curated roster of **38** real, publicly listed entities: 28 G-SIB / large
+  banks **and 10 non-financial corporates** (Apple, ExxonMobil, Toyota, Volkswagen, Boeing,
+  Petrobras, …) (`data/external/banks/gsib_roster.csv`, with a `node_type` column).
+- **Marginals `p_i`** — each entity's public S&P rating → 1-year PD via the committed Moody's
+  Exhibit-17 table.
+- **Correlation** — real **daily equity-return** correlation (755 obs, 2021–2024;
+  `data/external/banks/equity_corr.csv`). This is the genuine network signal: it drives
+  community detection and is the latent asset-return correlation the copula baselines
+  threshold into correlated defaults.
+- **Edges** — bilateral exposures are **reconstructed** from per-node totals (real bilateral
+  matrices are confidential — the field-standard move), pluggable between `max_entropy`
+  (RAS/IPF, dense) and `min_density` (Anand-style, sparse). Corporates **borrow** from banks
+  but do not lend interbank, so the graph has directed **bank → corporate** edges (a bank
+  loses if a corporate it financed defaults).
+- **Edge weights are risk-adjusted** (`src/systemic_risk/edge_metrics.py`): each *directed*
+  notional is scaled into an **effective loss** by loss-given-default (recovery / seniority /
+  collateralization), maturity / rollover stress, wrong-way risk (correlation-conditional),
+  and concentration / substitutability. The cascade propagates this effective matrix; the raw
+  notional is kept for audit. "Mutual exposure" is no longer flattened — `A`'s loss if `B`
+  fails ≠ the reverse.
+- **Communities** — greedy-modularity detection on the correlation graph; the committed
+  snapshot yields five stable communities along **region × sector** lines — North-American
+  banks, Europe/UK, Japan, an energy/LatAm cluster (Petrobras, ExxonMobil, Brazilian banks),
+  and a US-tech cluster (Apple, Microsoft, …) — mean ARI ≈ 0.85 under perturbation.
+
+**Canonical layered spec.** `NetworkSpec` separates the *empirical* layer (frozen ground
+truth: marginals, correlation, balance-sheet totals) from the *reconstructed* layer
+(swappable bilateral edges + method tag), with a documented `FeatureSchema` (field meanings +
+per-consumer visibility) and `Provenance` (source, fit params, content hash). It round-trips
+losslessly (`to_json`/`from_json`) and assembles down into the flat `SystemSpec` via
+`to_system_spec()`. `view_for("generator" | "simulator" | "visualization")` returns only the
+fields each consumer is allowed to see.
+
+**Check everything** (the A end-to-end test — load raw → emit a valid spec → round-trip →
+stable clusters → B/C/D conformance):
+>>>>>>> 2e4f428 (Current state of data prep)
 
 ```bash
 uv run pytest tests/test_data_network.py -q
