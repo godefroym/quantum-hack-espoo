@@ -1,0 +1,17 @@
+sequenceDiagram
+  participant Spec as SystemSpec
+  participant Gen as Generator
+  participant Sim as Simulator
+  participant Met as Metrics
+  participant Eval as Evaluation
+
+  Spec->>Gen: provide marginals, pairwise targets, exposures
+  Gen->>Gen: fit (if needed) / build entanglement layout (quantum path)
+  Gen-->>Sim: sample scenarios (binary vectors)
+  note right of Gen: Generator-agnostic API: sample(n)
+  Sim->>Sim: deterministic cascade computation
+  Sim-->>Met: per-scenario results (loss, rounds, flags)
+  Met-->>Eval: aggregate metrics, tail measures
+  Eval-->>Visuals: produce comparison plots and reports
+
+  Note over Gen,Sim: Simulator does not care about generator internals

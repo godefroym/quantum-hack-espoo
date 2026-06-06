@@ -7,6 +7,8 @@ __pycache__/
 .ruff_cache/
 
 outputs/
+outputs/scenarios/
+outputs/scenarios/*.csv
 *.egg-info/
 .DS_Store
 .env

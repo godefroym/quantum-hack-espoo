@@ -229,6 +229,25 @@ def latent_corr_to_joint(corr: np.ndarray, p: np.ndarray) -> np.ndarray:
     joint = np.where(one_j, np.broadcast_to(p[:, None], joint.shape), joint)
     joint = (joint + joint.T) / 2.0
     np.fill_diagonal(joint, p)
+    for i in range(len(p)):
+        for j in range(i + 1, len(p)):
+            if p[i] <= 0.0 or p[j] <= 0.0:
+                value = 0.0
+            elif p[i] >= 1.0:
+                value = p[j]
+            elif p[j] >= 1.0:
+                value = p[i]
+            else:
+                rho = float(np.clip(corr[i, j], -0.999, 0.999))
+                value = float(
+                    multivariate_normal.cdf(
+                        [thresholds[i], thresholds[j]],
+                        mean=[0.0, 0.0],
+                        cov=[[1.0, rho], [rho, 1.0]],
+                        allow_singular=True,
+                    )
+                )
+            joint[i, j] = joint[j, i] = value
     return joint
 
 
