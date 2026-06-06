@@ -22,8 +22,15 @@ survived and what did not is recorded honestly below.
 > and executed through Qiskit Runtime `SamplerV2` on `ibm_fez` (job
 > `d8i2cmlv8cos73f529u0`, 1,024 shots). The ISA circuit had depth 68 and 18 CZ gates.
 > Hardware-versus-ideal RMSE was 0.0290 on marginals and 0.00791 on pairwise joint probabilities.
-> This validates the small-block hardware path; it is not evidence for the homogeneous 54-qubit
-> state-loader, the block-separable full network, or QAE.
+> Scaling tests at 4,096 shots then showed the practical topology limit. A dense six-qubit block
+> (job `d8i2jrtv8cos73f52ifg`) used depth 148 and 57 CZ gates, with marginal RMSE 0.0299 and
+> pairwise-joint RMSE 0.00703. A dense eight-qubit block (job `d8i2k15v8cos73f52img`) grew to depth
+> 239 and 122 CZ gates and failed, with marginal RMSE 0.2025. Limiting logical degree to two reduced
+> the eight-qubit circuit to depth 100 and 31 CZ gates (job `d8i2krtv8cos73f52jmg`), restoring
+> marginal RMSE to 0.0264 and pairwise-joint RMSE to 0.00730 versus its ideal circuit. The sparse
+> ideal circuit's pairwise-joint RMSE versus the full target was 0.00715, so this recovery does not
+> hide a large fitting loss. This validates small sparse blocks on current hardware; it is not
+> evidence for the homogeneous 54-qubit state-loader, the block-separable full network, or QAE.
 
 > **⚠️ Known weakness (documented this stage, deliberately not patched).** The headline
 > demonstration (`scripts/run_demonstration.py`) still scores **Criterion 3 ("material to risk")**
@@ -296,5 +303,6 @@ weaker, honestly-bounded form and needs the matched-foil framing to be defensibl
    extend the ansatz so cross-cluster correlation survives above `max_block_qubits`, or state
    plainly that hardware scaling is exact only for exchangeable targets and approximate (block-
    separable) for heterogeneous ones.
-4. **Hardware.** Run the entangled loader on the incoming 54-qubit device and compare sampled
-   loss-count statistics to the oracle.
+4. **Hardware.** Treat sparse degree-limited blocks, not dense all-to-all blocks, as the current
+   hardware path. Validate repeated eight-qubit jobs and then test 10-12 qubits with explicit
+   depth/CZ/error acceptance thresholds before attempting larger loss-count experiments.

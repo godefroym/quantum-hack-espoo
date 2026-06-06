@@ -213,7 +213,7 @@ uv run --extra quantum python scripts/run_ibm_quantum_test.py --submit
 
 # Or select a backend explicitly:
 uv run --extra quantum python scripts/run_ibm_quantum_test.py \
-  --backend <backend-name> --shots 4096 --submit
+  --backend <backend-name> --qubits 8 --max-degree 2 --shots 4096 --submit
 ```
 
 The script transpiles the fitted `RY + CRY` circuit to the backend ISA, executes it with

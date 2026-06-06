@@ -25,6 +25,12 @@ from systemic_risk.spec import SystemSpec
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--backend", help="IBM backend name; default selects the least busy QPU")
+    parser.add_argument("--qubits", type=int, choices=(4, 6, 8), default=4)
+    parser.add_argument(
+        "--max-degree",
+        type=int,
+        help="Maximum number of entanglers touching each logical qubit.",
+    )
     parser.add_argument("--shots", type=int, default=4096)
     parser.add_argument("--optimization-level", type=int, choices=range(4), default=1)
     parser.add_argument(
@@ -40,32 +46,35 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def hardware_test_spec() -> SystemSpec:
-    p = np.array([0.08, 0.12, 0.16, 0.20])
-    corr = np.array(
-        [
-            [1.00, 0.16, 0.08, 0.05],
-            [0.16, 1.00, 0.13, 0.07],
-            [0.08, 0.13, 1.00, 0.11],
-            [0.05, 0.07, 0.11, 1.00],
-        ]
-    )
+def hardware_test_spec(n_qubits: int = 4) -> SystemSpec:
+    """Moderate-probability benchmark whose moments remain observable at a few thousand shots."""
+    if n_qubits not in {4, 6, 8}:
+        raise ValueError("hardware test supports 4, 6, or 8 qubits")
+    p = np.linspace(0.08, 0.20, n_qubits)
+    index = np.arange(n_qubits)
+    distance = np.abs(index[:, None] - index[None, :])
+    corr = 0.04 + 0.14 * np.exp(-distance / 2.0)
+    np.fill_diagonal(corr, 1.0)
     return SystemSpec(
-        node_names=["Bank A", "Bank B", "Bank C", "Bank D"],
-        node_types=["bank"] * 4,
-        exposure_matrix=np.zeros((4, 4)),
-        capital_buffers=np.ones(4),
+        node_names=[f"Bank {index + 1}" for index in range(n_qubits)],
+        node_types=["bank"] * n_qubits,
+        exposure_matrix=np.zeros((n_qubits, n_qubits)),
+        capital_buffers=np.ones(n_qubits),
         marginal_default_probs=p,
         target_pairwise_corr=corr,
-        clusters=["hardware-test"] * 4,
+        clusters=["hardware-test"] * n_qubits,
         metadata={"correlation_space": "binary_default", "kind": "ibm-hardware-test"},
     )
 
 
 def main() -> None:
     args = parse_args()
-    spec = hardware_test_spec()
-    generator = EntangledBornMachineGenerator(ansatz="entangled", backend="statevector")
+    spec = hardware_test_spec(args.qubits)
+    generator = EntangledBornMachineGenerator(
+        ansatz="entangled",
+        backend="statevector",
+        max_degree=args.max_degree,
+    )
     generator.fit(spec)
     if len(generator.blocks_) != 1:
         raise RuntimeError("the IBM smoke test requires one materialisable circuit block")
@@ -78,6 +87,7 @@ def main() -> None:
                     "status": "dry-run",
                     "n_qubits": block.size,
                     "entanglers": len(block.edges),
+                    "max_degree": args.max_degree,
                     "shots": args.shots,
                     "backend": args.backend or "least_busy",
                     "next_command": (
@@ -103,7 +113,9 @@ def main() -> None:
     )
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(args.output_dir / "hardware_samples.npz", samples=result.samples)
+    topology = "dense" if args.max_degree is None else f"degree{args.max_degree}"
+    stem = f"hardware_{args.qubits}q_{topology}_{result.backend_name}_{result.job_id}"
+    np.savez_compressed(args.output_dir / f"{stem}_samples.npz", samples=result.samples)
     report = {
         "backend": result.backend_name,
         "job_id": result.job_id,
@@ -113,10 +125,26 @@ def main() -> None:
         "circuit_operations": result.circuit_operations,
         "marginal_rmse_vs_ideal": marginal_rmse,
         "pairwise_joint_rmse_vs_ideal": pairwise_joint_rmse,
+        "max_degree": args.max_degree,
         "ideal_marginals": ideal_marginals.tolist(),
         "hardware_marginals": observed.marginals.tolist(),
     }
-    (args.output_dir / "hardware_report.json").write_text(
+    targets = generator.targets_
+    report["ideal_pairwise_joint_rmse_vs_target"] = float(
+        np.sqrt(np.mean((ideal_joint[mask] - targets.pairwise_joint[mask]) ** 2))
+    )
+    report["hardware_marginal_rmse_vs_target"] = float(
+        np.sqrt(np.mean((observed.marginals - targets.marginals) ** 2))
+    )
+    report["hardware_pairwise_joint_rmse_vs_target"] = float(
+        np.sqrt(
+            np.mean(
+                (observed.pairwise_joint[mask] - targets.pairwise_joint[mask]) ** 2
+            )
+        )
+    )
+    report["n_qubits"] = args.qubits
+    (args.output_dir / f"{stem}_report.json").write_text(
         json.dumps(report, indent=2),
         encoding="utf-8",
     )
