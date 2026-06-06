@@ -58,9 +58,10 @@ src/systemic_risk/
     cluster / assemble    #   community detection + stability; layer assembly
     validate              #   round-trip + cluster-stability + B/C/D contract conformance
   generators/             # Bernoulli, copula, and entangled generators
+    quantum/layout.py     # dependency clustering, sparse entanglers, circuit layers
   simulator/              # deterministic cascade, exogenous shocks, LGD, round diagnostics
   evaluation/             # metrics and comparison harness
-  visualization/          # graph plots (incl. community plot) and crisis cards
+  visualization/          # graph, cascade, dependency, and entanglement-layout plots
   utils/
 scripts/
   run_mvp.py
@@ -154,6 +155,28 @@ default targets.
 The shared cascade keeps the original binary-scenario API and also supports
 named scenarios, direct exogenous losses, scalar or edge-level LGD, explicit
 failure rounds, cumulative-loss diagnostics, and convergence reporting.
+
+### Dependency clustering and entanglement layout
+
+Shay's clustering layer combines binary-default correlation and symmetrised
+exposure strength, detects deterministic threshold-connected clusters, selects
+sparse intra-cluster entanglers, and schedules them into collision-free circuit
+layers:
+
+```bash
+uv run python examples/run_clustering_layout.py
+```
+
+The example writes `outputs/entanglement_layout.png` and
+`outputs/dependency_matrix.png`. The layout can also drive the Born machine
+directly with `EntangledBornMachineGenerator(layout_strategy="clustered")`;
+the original strongest-edge strategy remains the default for reproducibility.
+
+The earlier standalone `contagion/` prototype is not a second runtime package:
+its simulator, metrics, and plots were integrated into
+`systemic_risk.simulator`, `systemic_risk.evaluation`, and
+`systemic_risk.visualization`. New contagion-related work should extend those
+canonical modules rather than recreate the old package.
 
 ### Optional classical fire-sale extension
 

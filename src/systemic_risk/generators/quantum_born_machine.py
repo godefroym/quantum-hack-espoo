@@ -40,6 +40,7 @@ import numpy as np
 from systemic_risk.generators.base import ScenarioGenerator, require_fitted
 from systemic_risk.generators.moments import MomentTargets, targets_from_spec
 from systemic_risk.generators.quantum import ansatz as A
+from systemic_risk.generators.quantum import layout as L
 from systemic_risk.generators.quantum.statevector import StateVector, sample_bitstrings
 from systemic_risk.spec import SystemSpec
 
@@ -66,6 +67,12 @@ class EntangledBornMachineGenerator(ScenarioGenerator):
         backend: str = "statevector",
         edge_threshold: float = 0.02,
         max_degree: int | None = None,
+        layout_strategy: str = "strongest",
+        cluster_threshold: float = 0.55,
+        entangle_threshold: float = 0.65,
+        classical_threshold: float = 0.10,
+        correlation_weight: float = 0.75,
+        exposure_weight: float = 0.25,
         max_block_qubits: int = 22,
         calibrate: bool = True,
         calibration_iterations: int = 30,
@@ -75,10 +82,18 @@ class EntangledBornMachineGenerator(ScenarioGenerator):
             raise ValueError(f"unknown ansatz {ansatz!r}")
         if backend not in {"statevector", "qiskit"}:
             raise ValueError(f"unknown backend {backend!r}")
+        if layout_strategy not in {"strongest", "clustered"}:
+            raise ValueError(f"unknown layout strategy {layout_strategy!r}")
         self.ansatz = ansatz
         self.backend = backend
         self.edge_threshold = edge_threshold
         self.max_degree = max_degree
+        self.layout_strategy = layout_strategy
+        self.cluster_threshold = cluster_threshold
+        self.entangle_threshold = entangle_threshold
+        self.classical_threshold = classical_threshold
+        self.correlation_weight = correlation_weight
+        self.exposure_weight = exposure_weight
         self.max_block_qubits = max_block_qubits
         self.calibrate = calibrate
         self.calibration_iterations = calibration_iterations
@@ -87,6 +102,7 @@ class EntangledBornMachineGenerator(ScenarioGenerator):
         self.spec_: SystemSpec | None = None
         self.targets_: MomentTargets | None = None
         self.edges_: list[tuple[int, int]] = []
+        self.layout_: L.ClusterResult | None = None
         self.blocks_: list[A.EntangledCircuit] = []
         self.ghz_: A.GHZBlend | None = None
         self.symmetric_: A.SymmetricIsingLoader | None = None
@@ -99,6 +115,7 @@ class EntangledBornMachineGenerator(ScenarioGenerator):
         # comparisons stay matched on marginals + pairwise joint (fairness invariant).
         self.targets_ = targets_from_spec(spec)
         self.edges_ = []
+        self.layout_ = None
         self.blocks_ = []
         self.ghz_ = None
         self.symmetric_ = None
@@ -149,12 +166,24 @@ class EntangledBornMachineGenerator(ScenarioGenerator):
         # Keep the whole system in one block while it is small enough to simulate exactly;
         # otherwise restrict to within-community edges so blocks stay small.
         whole_system = spec.n <= self.max_block_qubits
-        self.edges_ = A.dependency_edges(
-            spec,
-            threshold=self.edge_threshold,
-            within_clusters_only=not whole_system,
-            max_degree=self.max_degree,
-        )
+        if self.layout_strategy == "clustered":
+            self.layout_ = L.build_clustering_layout_from_spec(
+                spec,
+                corr_weight=self.correlation_weight,
+                exposure_weight=self.exposure_weight,
+                cluster_threshold=self.cluster_threshold,
+                entangle_threshold=self.entangle_threshold,
+                classical_threshold=self.classical_threshold,
+                max_entangled_degree=self.max_degree,
+            )
+            self.edges_ = [(pair.i, pair.j) for pair in self.layout_.entangled_pairs]
+        else:
+            self.edges_ = A.dependency_edges(
+                spec,
+                threshold=self.edge_threshold,
+                within_clusters_only=not whole_system,
+                max_degree=self.max_degree,
+            )
         block_qubits = A.partition_blocks(spec, self.edges_, max_block=self.max_block_qubits)
 
         moments_fn = self._block_moments_fn()
@@ -353,6 +382,16 @@ class EntangledBornMachineGenerator(ScenarioGenerator):
                 ),
                 "edges": [
                     (self.spec_.node_names[i], self.spec_.node_names[j]) for i, j in self.edges_
+                ],
+                "layout_strategy": self.layout_strategy,
+                "entanglement_layers": []
+                if self.layout_ is None
+                else [
+                    [
+                        (pair.institution_i, pair.institution_j)
+                        for pair in layer
+                    ]
+                    for layer in self.layout_.entanglement_layers
                 ],
                 "blocks": [[self.spec_.node_names[q] for q in b.qubits] for b in self.blocks_],
             }
