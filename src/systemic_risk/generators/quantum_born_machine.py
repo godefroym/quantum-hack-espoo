@@ -38,6 +38,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from systemic_risk.generators.base import ScenarioGenerator, require_fitted
+from systemic_risk.generators.moments import MomentTargets, targets_from_spec
 from systemic_risk.generators.quantum import ansatz as A
 from systemic_risk.generators.quantum.statevector import StateVector, sample_bitstrings
 from systemic_risk.spec import SystemSpec
@@ -84,6 +85,7 @@ class EntangledBornMachineGenerator(ScenarioGenerator):
         self.benign_fraction = benign_fraction
 
         self.spec_: SystemSpec | None = None
+        self.targets_: MomentTargets | None = None
         self.edges_: list[tuple[int, int]] = []
         self.blocks_: list[A.EntangledCircuit] = []
         self.ghz_: A.GHZBlend | None = None
@@ -93,6 +95,9 @@ class EntangledBornMachineGenerator(ScenarioGenerator):
     # ------------------------------------------------------------------ fitting
     def fit(self, spec: SystemSpec) -> None:
         self.spec_ = spec
+        # Same moment targets the classical baselines calibrate to, so generator
+        # comparisons stay matched on marginals + pairwise joint (fairness invariant).
+        self.targets_ = targets_from_spec(spec)
         self.edges_ = []
         self.blocks_ = []
         self.ghz_ = None
