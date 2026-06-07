@@ -16,7 +16,7 @@
         <span class="badge">${i.size}</span>
         <span class="lbl">${i.labels.join(" · ")}</span>
         <span class="meta">${R1(i.support)} · ${i.lift.toFixed(1)}×</span>
-      </div>`).join("");Z("#panel").html(`<div class="title">Systemic Failure Network</div>
+      </div>`).join("");Z("#panel").html(`<div class="title">Crisis Correlation Network</div>
      <div class="subtitle">${l1.n} institutions · ${(l1.shots/1e3).toFixed(0)}k quantum shots</div>
 
      <div class="section">
