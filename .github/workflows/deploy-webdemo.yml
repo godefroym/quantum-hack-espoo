@@ -13,7 +13,7 @@ name: Deploy WebDemo to GitHub Pages
 
 on:
   push:
-    branches: ["WebDemo"]
+    branches: ["web_demo"]
   workflow_dispatch: {}   # also allow manual runs from the Actions tab
 
 # Allow the workflow to publish to Pages.
