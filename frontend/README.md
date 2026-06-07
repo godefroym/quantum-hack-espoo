@@ -1,23 +1,26 @@
-# Quantum Stress — Demo Site
+# Failure Network — Demo Site
 
 A judge-facing site for **Quantum Systemic Stress Scenario Discovery**.
 
-Built with **Vite + React + TypeScript**, **Tailwind CSS v4**, **shadcn/ui**, and
-**react-router**.
+Built with **Vite + React + TypeScript + Tailwind CSS v4**. The page is a single,
+full-screen view that embeds the interactive **failure-network** visualization.
 
-Two routes:
+## Structure
 
-- **`/` — landing / pitch.** Title, tagline, a live node-cluster background
-  (clusters collapse via probabilistic percolation when the cursor is near), and
-  the pitch sections: Problem → Approach → Quantum advantage → Network → Scope.
-- **`/results` — quantum hardware results.** Presents the real IBM `ibm_fez`
-  20-qubit, 100k-shot run of the entangled Born-machine generator. The results
-  are determined (not interactive); the page shows the same run several ways,
-  each labelled an **Option**, so the set can be narrowed down:
-  - **A** grouped marginals bars · **B** parity scatter · **C** line overlay
-  - **D** pairwise correlation heatmap
-  - **E** default-count distribution (with a "replay sampling" build-up visual)
-  - **F** top sampled scenarios grid
+- `frontend/` (this app) is a thin shell: it renders one full-screen `<iframe>`
+  pointing at `/proto/index.html`.
+- The actual visualization lives in `prototyping-for-quantum/prototyping-for-quantum/`
+  (a separate Vite + d3 app — the 3D globe / flat map, clusters, threshold
+  slider, etc.). Its production build is copied into `frontend/public/proto/`.
+
+To rebuild the embedded visualization after changing it:
+
+```bash
+cd prototyping-for-quantum/prototyping-for-quantum
+npm install            # first run only
+npm run build          # -> dist/
+cp -r dist/* ../../frontend/public/proto/
+```
 
 ## Run locally
 
@@ -28,33 +31,31 @@ npm run build    # type-check + production build into dist/
 npm run preview  # serve the production build
 ```
 
-## Results data
+## Demo data
 
-The page reads `public/results/hardware.json`, baked from a committed hardware run.
-Regenerate it from the repo root.
-
-Current run — the **48-entity 2008-stress, 4-cluster mixture** on IBM `ibm_boston`
-(200k reconciled shots, `outputs/real_cluster_mixture_stress_hw/`):
-
-```bash
-uv run python scripts/export_stress_results_data.py
-```
-
-Older run — the single 20-qubit `ibm_fez` circuit (`outputs/results/`):
+The visualization reads its own `data.json` (bundled into the prototype). It is
+generated from the latest hardware run — the **48-entity 2008-stress, 4-cluster
+mixture** on IBM `ibm_boston` (200k reconciled shots,
+`outputs/real_cluster_mixture_stress_hw/`):
 
 ```bash
-uv run python scripts/export_results_data.py
+uv run python scripts/export_failure_network.py
 ```
 
-Both recompute the derived views (correlation matrix, default-count histogram, top
-scenarios, tail survival vs copula baselines) from the raw shots. Note: at 48 qubits there
-is no exact simulator, so the "ideal" series is the full-network Gaussian-copula reference
-(the frontend labels it "Gaussian reference").
+This computes the sufficient statistics (marginals, pairwise φ, conditionals,
+eigenvector centrality, the run's clusters, co-failure baskets) and writes
+`prototyping-for-quantum/prototyping-for-quantum/src/data.json`. Rebuild + copy
+the prototype afterwards (see above).
 
-## Adding more shadcn components
+## Deprecated (kept, not used by the page)
 
-Pre-configured for the shadcn CLI (`components.json`):
+The page no longer renders a multi-panel results page, so the following are
+retained only for reference / a possible future results page and are **not read
+by the current demo**:
 
-```bash
-npx shadcn@latest add card badge   # components land in src/components/ui/
-```
+- `frontend/public/results/hardware.json`
+- `scripts/export_results_data.py` (old 20-qubit `ibm_fez` run, `outputs/results/`)
+- `scripts/export_stress_results_data.py` (48-entity run → `hardware.json`)
+
+Each is marked deprecated in its header / `_deprecated` field. The live demo's
+data path is `scripts/export_failure_network.py` only.

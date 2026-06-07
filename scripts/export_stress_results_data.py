@@ -1,5 +1,11 @@
 """Export the 48-entity 2008-STRESS hardware run into the web demo's hardware.json.
 
+DEPRECATED (kept for reference): the web demo no longer renders this
+``hardware.json``. The page now embeds the interactive failure-network prototype,
+whose data is produced by ``scripts/export_failure_network.py`` (which reads the
+same ``outputs/real_cluster_mixture_stress_hw/`` run). This script is retained
+only for a possible future results page. See ``frontend/README.md``.
+
 The newer run (``outputs/real_cluster_mixture_stress_hw/``) is a 4-cluster *mixture*: each
 community was run as its own circuit on IBM ``ibm_boston`` and the per-cluster shots were
 reconciled into one 200k-shot, 48-entity global sample set. There is **no exact 48-qubit
@@ -177,8 +183,15 @@ def main() -> None:
         },
     }
 
+    out["_deprecated"] = (
+        "Not used by the current web demo (single embedded prototype). "
+        "See frontend/README.md and scripts/export_failure_network.py."
+    )
+
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     (OUT_DIR / "hardware.json").write_text(json.dumps(out))
+    print("[DEPRECATED] hardware.json is not read by the current web demo; "
+          "see frontend/README.md.")
     print(f"wrote {OUT_DIR / 'hardware.json'}")
     print(
         f"  backend={out['backend']} n={n} shots={shots} clusters={out['stress']['n_clusters']} "

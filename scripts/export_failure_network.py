@@ -265,7 +265,7 @@ def main() -> None:
         "maxAbsPhi": float(np.max(np.abs(phi))),
         "posPhiScale": q(pos_sorted, 0.97, 0.1),
         "negPhiScale": q(neg_sorted, 0.97, 0.05),
-        "defaultThreshold": 0.2,
+        "defaultThreshold": 0.9,
         "note": (
             f"Pairwise phi co-failure correlations from {int(total):,} shots of a "
             f"cluster-mixture stress run on IBM hardware ({n} institutions). Edge "

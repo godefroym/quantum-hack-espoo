@@ -1,9 +1,15 @@
 """Export the real IBM quantum-hardware run into a JSON the web demo can read.
 
+DEPRECATED (kept for reference): the web demo no longer renders this
+``hardware.json``. The page now embeds the interactive failure-network
+prototype, whose data is produced by ``scripts/export_failure_network.py``.
+This script (and the older 20-qubit ``outputs/results/`` run it reads) is
+retained only for a possible future results page. See ``frontend/README.md``.
+
 Reads the committed report + sample bitstrings from ``outputs/results/`` and
-derives the views the results page presents (marginals, correlation heatmap,
-default-count distribution, top sampled scenarios). The .npz is binary, so this
-bakes everything into ``frontend/public/results/hardware.json``.
+derives the views the (former) results page presented (marginals, correlation
+heatmap, default-count distribution, top sampled scenarios). The .npz is binary,
+so this bakes everything into ``frontend/public/results/hardware.json``.
 
 Usage:
     uv run python scripts/export_results_data.py
@@ -420,8 +426,15 @@ def main() -> None:
         "tail": compute_tail(samples),
     }
 
+    out["_deprecated"] = (
+        "Not used by the current web demo (single embedded prototype). "
+        "See frontend/README.md and scripts/export_failure_network.py."
+    )
+
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     (OUT_DIR / "hardware.json").write_text(json.dumps(out))
+    print("[DEPRECATED] hardware.json is not read by the current web demo; "
+          "see frontend/README.md.")
     print(f"wrote {OUT_DIR / 'hardware.json'}")
     print(
         f"  backend={out['backend']} n={n} shots={shots} "
