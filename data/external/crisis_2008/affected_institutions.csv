@@ -1,0 +1,21 @@
+id,name,ticker,yahoo_ticker,type,country,region,hq_lat,hq_lon,crisis_role,source
+JPM,JPMorgan Chase,JPM,JPM,bank,US,North America,40.755,-73.976,Acquired Bear Stearns (Mar 2008) and Washington Mutual (Sep 2008),wikipedia:Financial_crisis_of_2007-2008
+C,Citigroup,C,C,bank,US,North America,40.721,-74.009,Largest US-bank write-downs; received TARP + government backstop,wikipedia:Citigroup
+GS,Goldman Sachs,GS,GS,bank,US,North America,40.715,-74.013,Converted to bank holding company; took TARP; Buffett capital injection,wikipedia:Goldman_Sachs
+MS,Morgan Stanley,MS,MS,bank,US,North America,40.764,-73.979,Near-failure; rescued in part by a US$9bn MUFG investment,wikipedia:Morgan_Stanley
+HSBC,HSBC Holdings,HSBC,HSBC,bank,GB,UK & Europe,51.505,-0.019,Large US subprime losses via Household Finance; 2009 rights issue,wikipedia:HSBC
+BCS,Barclays,BCS,BCS,bank,GB,UK & Europe,51.504,-0.017,Bought Lehman's US operations; raised Gulf sovereign capital,wikipedia:Barclays
+DB,Deutsche Bank,DB,DB,bank,DE,UK & Europe,50.114,8.671,Heavy trading/credit losses through 2008,wikipedia:Deutsche_Bank
+UBS,UBS,UBS,UBS,bank,CH,UK & Europe,47.370,8.541,Among the largest subprime write-downs; Swiss state stabilisation,wikipedia:UBS
+ING,ING Group,ING,ING,bank,NL,UK & Europe,52.372,4.896,Received EUR 10bn Dutch state capital injection (Oct 2008),wikipedia:ING_Group
+MUFG,Mitsubishi UFJ Financial Group,MUFG,MUFG,bank,JP,Japan,35.680,139.764,Invested US$9bn in Morgan Stanley (Oct 2008),wikipedia:Mitsubishi_UFJ_Financial_Group
+NMR,Nomura Holdings,NMR,NMR,bank,JP,Japan,35.690,139.773,Acquired Lehman's Asia-Pacific and European/Middle-East operations,sec:Nomura_6-K_FY2008
+MFG,Mizuho Financial Group,MFG,MFG,bank,JP,Japan,35.686,139.764,Subprime-related losses; participated in Merrill Lynch capital raise,wikipedia:Mizuho_Financial_Group
+ICBC,Industrial and Commercial Bank of China,1398.HK,1398.HK,bank,CN,Greater China,39.915,116.404,Held US subprime securities; bought 20% of Standard Bank (~US$5.5bn),icbc:Standard_Bank_stake
+BOC,Bank of China,3988.HK,3988.HK,bank,CN,Greater China,39.908,116.392,Among the largest US subprime/MBS exposures of Chinese banks,wikipedia:Bank_of_China
+PINGAN,Ping An Insurance,2318.HK,2318.HK,insurer,CN,Greater China,22.543,114.058,Wrote down its stake in Fortis (~EUR 2.3bn loss),wikipedia:Ping_An_Insurance
+DBS,DBS Group,D05.SI,D05.SI,bank,SG,Asia-Pacific,1.283,103.851,Singapore Lehman Minibond retail fallout; regional credit stress,wikipedia:DBS_Bank
+ICICI,ICICI Bank,IBN,IBN,bank,IN,Asia-Pacific,19.076,72.877,Share-price slump and depositor-confidence scare (Oct 2008),wikipedia:ICICI_Bank
+SHIN,Shinhan Financial Group,SHG,SHG,bank,KR,Asia-Pacific,37.525,126.925,Korean banks hit by acute USD-funding and won pressure (KDB-Lehman talks lapsed),bis:r110124c
+SBK,Standard Bank Group,SBK.JO,SBK.JO,bank,ZA,Africa,-26.196,28.047,ICBC took a 20% stake; JSE and rand sold off sharply,goldmansachs:2007-icbc-stake-in-standard-bank
+FBN,FBN Holdings (First Bank of Nigeria),FBNH.LG,FBNH.LG,bank,NG,Africa,6.452,3.394,Operated through the 2008-09 Nigerian banking crisis (GFC + margin-loan/oil shock; CBN bank rescues 2009),imf:Nigerian_Banking_Crisis_2008-2009

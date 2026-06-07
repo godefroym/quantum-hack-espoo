@@ -129,7 +129,7 @@ export function useHardware(): Load<HardwareData> {
   })
   useEffect(() => {
     let alive = true
-    fetch("/results/hardware.json")
+    fetch(`${import.meta.env.BASE_URL}results/hardware.json`)
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()
@@ -157,6 +157,8 @@ export function nameOf(data: HardwareData, i: number): string {
 
 export const SERIES = {
   target: { label: "Analytic target", color: "#94a3b8" }, // slate
-  ideal: { label: "Exact simulator", color: "#818cf8" }, // indigo
+  // For the 48-qubit stress run there is no exact 2^48 simulator; the "ideal"
+  // reference series is the full-network Gaussian-copula fit to the target.
+  ideal: { label: "Gaussian reference", color: "#818cf8" }, // indigo
   hardware: { label: "IBM hardware", color: "#22d3ee" }, // cyan
 }

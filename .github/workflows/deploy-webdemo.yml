@@ -1,0 +1,67 @@
+# Build the frontend/ Vite site and publish it to GitHub Pages on every push to WebDemo.
+#
+# ONE-TIME SETUP (cannot be automated): in the repo, go to
+#   Settings -> Pages -> Build and deployment -> Source: "GitHub Actions".
+# After that, every push to the WebDemo branch redeploys the site to
+#   https://<owner>.github.io/<repo>/   (e.g. https://godefroym.github.io/quantum-hack-espoo/)
+#
+# The base path is derived from the repo name so the assets and the data fetch
+# (public/results/hardware.json, read via import.meta.env.BASE_URL) resolve under the
+# /<repo>/ subpath that project Pages sites are served from.
+
+name: Deploy WebDemo to GitHub Pages
+
+on:
+  push:
+    branches: ["WebDemo"]
+  workflow_dispatch: {}   # also allow manual runs from the Actions tab
+
+# Allow the workflow to publish to Pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One live deployment at a time; let an in-progress run finish (don't cancel a deploy).
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (base = /<repo>/ for project Pages)
+        run: npm run build -- --base=/${{ github.event.repository.name }}/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

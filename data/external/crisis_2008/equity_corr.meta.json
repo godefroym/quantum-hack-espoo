@@ -1,0 +1,28 @@
+{
+  "tickers": [
+    "JPM",
+    "C",
+    "GS",
+    "MS",
+    "HSBC",
+    "BCS",
+    "DB",
+    "UBS",
+    "ING",
+    "MUFG",
+    "NMR",
+    "MFG",
+    "ICBC",
+    "BOC",
+    "PINGAN",
+    "DBS",
+    "ICICI",
+    "SHIN",
+    "SBK"
+  ],
+  "n": 19,
+  "n_obs": 938,
+  "start": "2007-01-03",
+  "end": "2010-12-30",
+  "source": "Yahoo daily adjusted closes; log-return Pearson correlation"
+}

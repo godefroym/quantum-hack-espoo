@@ -68,26 +68,26 @@ def load_institutions(n: int) -> list[dict]:
 
 # headquarters coordinates [lat, lon] for the first 20 roster institutions
 HQ_COORDS: dict[str, tuple[float, float]] = {
-    "JPM": (40.755, -73.976),  # New York
-    "BAC": (35.227, -80.843),  # Charlotte
-    "C": (40.721, -74.009),  # New York
-    "WFC": (37.791, -122.402),  # San Francisco
-    "GS": (40.715, -74.013),  # New York
-    "MS": (40.764, -73.979),  # New York
-    "USB": (44.977, -93.271),  # Minneapolis
-    "PNC": (40.441, -79.994),  # Pittsburgh
-    "TFC": (35.224, -80.840),  # Charlotte
-    "BK": (40.711, -74.011),  # New York
-    "STT": (42.353, -71.055),  # Boston
-    "HSBC": (51.505, -0.019),  # London (Canary Wharf)
-    "BCS": (51.504, -0.017),  # London
-    "LYG": (51.513, -0.091),  # London
-    "DB": (50.114, 8.671),  # Frankfurt
-    "SAN": (40.404, -3.873),  # Boadilla del Monte, Madrid
-    "BBVA": (43.263, -2.935),  # Bilbao
-    "ING": (52.372, 4.896),  # Amsterdam
-    "UBS": (47.370, 8.541),  # Zurich
-    "MUFG": (35.680, 139.764),  # Tokyo
+    "JPM": (40.755, -73.976),
+    "BAC": (35.227, -80.843),
+    "C": (40.721, -74.009),
+    "WFC": (37.791, -122.402),
+    "GS": (40.715, -74.013),
+    "MS": (40.764, -73.979),
+    "USB": (44.977, -93.271),
+    "PNC": (40.441, -79.994),
+    "TFC": (35.224, -80.840),
+    "BK": (40.711, -74.011),
+    "STT": (42.353, -71.055),
+    "HSBC": (51.505, -0.019),
+    "BCS": (51.504, -0.017),
+    "LYG": (51.513, -0.091),
+    "DB": (50.114, 8.671),
+    "SAN": (40.404, -3.873),
+    "BBVA": (43.263, -2.935),
+    "ING": (52.372, 4.896),
+    "UBS": (47.370, 8.541),
+    "MUFG": (35.680, 139.764),
 }
 
 

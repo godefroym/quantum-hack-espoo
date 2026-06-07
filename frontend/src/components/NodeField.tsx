@@ -37,9 +37,6 @@ const WALL_FORCE = 0.35 // strength of the push away from the walls
 
 // contagion cascade, triggered when the cursor reaches a cluster
 const TRIGGER_RADIUS = 125 // px: cursor within this of a cluster centre seeds it
-// probability a node collapses by hop distance from the seed; the cascade stops
-// after the last ring listed
-const LEVEL_PROB = [1, 1, 0.5, 0.3, 0.9] // index = hop depth (0 = seed)
 const STEP_MS = 120 // gap between successive failures (one node at a time)
 const HOLD_MS = 1100 // pause once the cascade has run its course
 const COOLDOWN_MS = 1500 // extra pause (after regen) before a cluster can re-trigger
@@ -125,9 +122,8 @@ export function NodeField() {
     const busyUntil: number[] = []
 
     // build one cascade within a cluster, seeded at the node nearest the cursor.
-    // It spreads outward hop by hop; the chance a node in the next ring collapses
-    // follows LEVEL_PROB (first ring certain, then dropping to zero), so it dies
-    // out and only part of the cluster fails. Returns failures in the order they
+    // It spreads deterministically outward hop by hop: every same-cluster
+    // neighbour within LINK_DIST collapses. Returns failures in the order they
     // should disappear (breadth-first from the seed).
     const cascadeOrder = (c: number, mx: number, my: number): number[] => {
       const alive: number[] = []
@@ -153,29 +149,21 @@ export function NodeField() {
       const failed = new Set<number>([seed])
       const order = [seed]
       let frontier = [seed]
-      for (let depth = 1; depth < LEVEL_PROB.length; depth++) {
-        const p = LEVEL_PROB[depth]
-        if (p <= 0) break
-        // unique alive neighbours of the current ring, not yet failed
-        const candidates = new Set<number>()
+      while (frontier.length) {
+        const next: number[] = []
         for (const u of frontier) {
           const nu = nodes[u]
           for (const v of alive) {
-            if (failed.has(v) || candidates.has(v)) continue
+            if (failed.has(v)) continue
             const dx = nu.x - nodes[v].x
             const dy = nu.y - nodes[v].y
-            if (dx * dx + dy * dy <= LINK_DIST * LINK_DIST) candidates.add(v)
+            if (dx * dx + dy * dy <= LINK_DIST * LINK_DIST) {
+              failed.add(v)
+              order.push(v)
+              next.push(v)
+            }
           }
         }
-        const next: number[] = []
-        for (const v of candidates) {
-          if (Math.random() < p) {
-            failed.add(v)
-            order.push(v)
-            next.push(v)
-          }
-        }
-        if (!next.length) break
         frontier = next
       }
       return order

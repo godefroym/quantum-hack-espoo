@@ -266,3 +266,11 @@ All sources are free / public. Licenses recorded per row. URLs verified during t
 | FFIEC FR Y-15 / FR Y-9C | 📝 | **`J_ij`** (+ `p_i` from Y-9C) |
 | BIS consolidated banking stats / Table 9B | 📝 | **`J_ij`** |
 | OFR FSI (OFRFSI) | 📝 | **macro-state** |
+
+### `crisis_2008/` — Asian & African institutions affected by the 2008 GFC ✅
+- **Contents:** `affected_institutions.csv` (20-institution roster: id, name, ticker, yahoo_ticker, type, country, region, HQ lat/lon, one-line crisis role, source) + `prices/<id>.csv` daily adjusted closes (2007-01-01 → 2010-12-31) + `fetch_log.json`.
+- **Granularity:** one roster row per institution; one price file per institution (≈990–1014 daily obs). 19/20 price series fetched (First Bank of Nigeria has no Yahoo series).
+- **Coverage:** US/UK/EU anchors plus the newly-researched Asia (MUFG, Nomura, Mizuho, ICBC, Bank of China, Ping An, DBS, ICICI, Shinhan) and Africa (Standard Bank, FBN Holdings) institutions.
+- **Format:** CSV. **License:** roster hand-curated from public reporting; prices from Yahoo Finance keyless chart API (research/personal use), treated as a reproducible snapshot.
+- **Source/refresh:** `uv run python scripts/fetch_crisis_equities.py`. See `crisis_2008/README.md` for per-institution provenance and citations.
+- **Maps to:** **p_i / J_ij** (geographically diverse real institutions + crisis-era equity co-movement) and the globe visualisation's node placement.

@@ -30,16 +30,26 @@ npm run preview  # serve the production build
 
 ## Results data
 
-The page reads `public/results/hardware.json`, baked from the committed hardware
-run in `outputs/results/` (the `.npz` samples + report). Regenerate it from the
-repo root with:
+The page reads `public/results/hardware.json`, baked from a committed hardware run.
+Regenerate it from the repo root.
+
+Current run — the **48-entity 2008-stress, 4-cluster mixture** on IBM `ibm_boston`
+(200k reconciled shots, `outputs/real_cluster_mixture_stress_hw/`):
+
+```bash
+uv run python scripts/export_stress_results_data.py
+```
+
+Older run — the single 20-qubit `ibm_fez` circuit (`outputs/results/`):
 
 ```bash
 uv run python scripts/export_results_data.py
 ```
 
-It recomputes the derived views (correlation matrix, default-count histogram,
-top scenarios) from the raw 100k shots.
+Both recompute the derived views (correlation matrix, default-count histogram, top
+scenarios, tail survival vs copula baselines) from the raw shots. Note: at 48 qubits there
+is no exact simulator, so the "ideal" series is the full-network Gaussian-copula reference
+(the frontend labels it "Gaussian reference").
 
 ## Adding more shadcn components
 

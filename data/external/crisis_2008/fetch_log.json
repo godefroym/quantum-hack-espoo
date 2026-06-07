@@ -1,0 +1,167 @@
+{
+  "start": "2007-01-01",
+  "end": "2010-12-31",
+  "n_ok": 19,
+  "n_total": 20,
+  "results": [
+    {
+      "id": "JPM",
+      "yahoo_ticker": "JPM",
+      "ok": true,
+      "n_obs": 1007,
+      "first": "2007-01-03",
+      "last": "2010-12-30"
+    },
+    {
+      "id": "C",
+      "yahoo_ticker": "C",
+      "ok": true,
+      "n_obs": 1007,
+      "first": "2007-01-03",
+      "last": "2010-12-30"
+    },
+    {
+      "id": "GS",
+      "yahoo_ticker": "GS",
+      "ok": true,
+      "n_obs": 1007,
+      "first": "2007-01-03",
+      "last": "2010-12-30"
+    },
+    {
+      "id": "MS",
+      "yahoo_ticker": "MS",
+      "ok": true,
+      "n_obs": 1007,
+      "first": "2007-01-03",
+      "last": "2010-12-30"
+    },
+    {
+      "id": "HSBC",
+      "yahoo_ticker": "HSBC",
+      "ok": true,
+      "n_obs": 1007,
+      "first": "2007-01-03",
+      "last": "2010-12-30"
+    },
+    {
+      "id": "BCS",
+      "yahoo_ticker": "BCS",
+      "ok": true,
+      "n_obs": 1007,
+      "first": "2007-01-03",
+      "last": "2010-12-30"
+    },
+    {
+      "id": "DB",
+      "yahoo_ticker": "DB",
+      "ok": true,
+      "n_obs": 1007,
+      "first": "2007-01-03",
+      "last": "2010-12-30"
+    },
+    {
+      "id": "UBS",
+      "yahoo_ticker": "UBS",
+      "ok": true,
+      "n_obs": 1007,
+      "first": "2007-01-03",
+      "last": "2010-12-30"
+    },
+    {
+      "id": "ING",
+      "yahoo_ticker": "ING",
+      "ok": true,
+      "n_obs": 1007,
+      "first": "2007-01-03",
+      "last": "2010-12-30"
+    },
+    {
+      "id": "MUFG",
+      "yahoo_ticker": "MUFG",
+      "ok": true,
+      "n_obs": 1007,
+      "first": "2007-01-03",
+      "last": "2010-12-30"
+    },
+    {
+      "id": "NMR",
+      "yahoo_ticker": "NMR",
+      "ok": true,
+      "n_obs": 1007,
+      "first": "2007-01-03",
+      "last": "2010-12-30"
+    },
+    {
+      "id": "MFG",
+      "yahoo_ticker": "MFG",
+      "ok": true,
+      "n_obs": 1007,
+      "first": "2007-01-03",
+      "last": "2010-12-30"
+    },
+    {
+      "id": "ICBC",
+      "yahoo_ticker": "1398.HK",
+      "ok": true,
+      "n_obs": 990,
+      "first": "2007-01-02",
+      "last": "2010-12-30"
+    },
+    {
+      "id": "BOC",
+      "yahoo_ticker": "3988.HK",
+      "ok": true,
+      "n_obs": 990,
+      "first": "2007-01-02",
+      "last": "2010-12-30"
+    },
+    {
+      "id": "PINGAN",
+      "yahoo_ticker": "2318.HK",
+      "ok": true,
+      "n_obs": 990,
+      "first": "2007-01-02",
+      "last": "2010-12-30"
+    },
+    {
+      "id": "DBS",
+      "yahoo_ticker": "D05.SI",
+      "ok": true,
+      "n_obs": 1004,
+      "first": "2007-01-03",
+      "last": "2010-12-30"
+    },
+    {
+      "id": "ICICI",
+      "yahoo_ticker": "IBN",
+      "ok": true,
+      "n_obs": 1007,
+      "first": "2007-01-03",
+      "last": "2010-12-30"
+    },
+    {
+      "id": "SHIN",
+      "yahoo_ticker": "SHG",
+      "ok": true,
+      "n_obs": 1007,
+      "first": "2007-01-03",
+      "last": "2010-12-30"
+    },
+    {
+      "id": "SBK",
+      "yahoo_ticker": "SBK.JO",
+      "ok": true,
+      "n_obs": 1014,
+      "first": "2007-01-02",
+      "last": "2010-12-30"
+    },
+    {
+      "id": "FBN",
+      "yahoo_ticker": "FBNH.LG",
+      "ok": false,
+      "error": "HTTPError: HTTP Error 404: Not Found",
+      "n_obs": 0
+    }
+  ]
+}
