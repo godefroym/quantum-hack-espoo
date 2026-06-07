@@ -59,7 +59,7 @@ GEN_SHORT = {
 # --------------------------------------------------------------------------- io
 
 def load_legend() -> list[dict]:
-    """qubit -> entity metadata, ordered by qubit index 0..37."""
+    """qubit -> entity metadata, ordered by qubit index 0..n-1."""
     rows = []
     with LEGEND_CSV.open() as fh:
         for r in csv.DictReader(fh):
@@ -372,7 +372,10 @@ def write_figure(legend, data, hw, baseline_target, stressed_target, conn) -> No
     n = len(legend)
     names = [r["ticker"] for r in legend]
     clusters = np.array([r["cluster"] for r in legend])
-    cluster_colors = np.array(["#1f77b4", "#ff7f0e", "#2ca02c"])
+    # one colour per cluster, sized to the actual k (tab10 cycles for any partition)
+    import matplotlib.cm as cm
+    k = int(clusters.max()) + 1
+    cluster_colors = np.array([cm.tab10(i % 10) for i in range(k)])
     x = np.arange(n)
 
     fig, axes = plt.subplots(3, 1, figsize=(16, 13))

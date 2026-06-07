@@ -4,7 +4,7 @@
   "sources": {
     "real_gsib": {
       "kind": "real",
-      "n_institutions": 38,
+      "n_institutions": 48,
       "node_names": [
         "JPMorgan Chase",
         "Bank of America",
@@ -43,56 +43,66 @@
         "Toyota Motor",
         "Volkswagen",
         "Siemens",
-        "Petrobras"
+        "Petrobras",
+        "Industrial & Commercial Bank of China",
+        "DBS Group",
+        "ICICI Bank",
+        "KB Financial Group",
+        "Commonwealth Bank of Australia",
+        "Westpac Banking Corp",
+        "Al Rajhi Bank",
+        "Qatar National Bank",
+        "Standard Bank Group",
+        "FirstRand"
       ],
-      "marginals_mean": 0.0023318421052631578,
+      "marginals_mean": 0.002593958333333333,
       "generators": {
         "bernoulli": {
           "shape": [
             4000,
-            38
+            48
           ],
           "fit_sample_seconds": 0.0,
-          "marginal_rmse": 0.0006052424481582826,
-          "mean_default_rate": 0.0023947368421052633,
-          "n_unique_scenarios": 54,
-          "corr_rmse": 0.46893489166667135,
+          "marginal_rmse": 0.0006363977398870406,
+          "mean_default_rate": 0.00265625,
+          "n_unique_scenarios": 78,
+          "corr_rmse": 0.4235104174036193,
           "degenerate": false
         },
         "gaussian_copula": {
           "shape": [
             4000,
-            38
+            48
           ],
-          "fit_sample_seconds": 0.04,
-          "marginal_rmse": 0.0008746442885990552,
-          "mean_default_rate": 0.0022500000000000003,
-          "n_unique_scenarios": 72,
-          "corr_rmse": 0.44637849208606306,
+          "fit_sample_seconds": 0.06,
+          "marginal_rmse": 0.0005847916295570586,
+          "mean_default_rate": 0.0025520833333333333,
+          "n_unique_scenarios": 86,
+          "corr_rmse": 0.39436380440029173,
           "degenerate": false
         },
         "student_t_copula": {
           "shape": [
             4000,
-            38
+            48
           ],
-          "fit_sample_seconds": 24.7,
-          "marginal_rmse": 0.0009536301832030011,
-          "mean_default_rate": 0.002348684210526316,
-          "n_unique_scenarios": 72,
-          "corr_rmse": 0.3678959557141127,
+          "fit_sample_seconds": 42.38,
+          "marginal_rmse": 0.0008745844251223928,
+          "mean_default_rate": 0.002427083333333333,
+          "n_unique_scenarios": 90,
+          "corr_rmse": 0.3630038546705475,
           "degenerate": false
         },
         "entangled_born_machine": {
           "shape": [
             4000,
-            38
+            48
           ],
-          "fit_sample_seconds": 0.41,
-          "marginal_rmse": 0.0006326136261573885,
-          "mean_default_rate": 0.002111842105263158,
-          "n_unique_scenarios": 53,
-          "corr_rmse": 0.43856411668045475,
+          "fit_sample_seconds": 0.51,
+          "marginal_rmse": 0.0006764660006238303,
+          "mean_default_rate": 0.002395833333333333,
+          "n_unique_scenarios": 73,
+          "corr_rmse": 0.4108922189677439,
           "degenerate": false
         }
       }
@@ -149,7 +159,7 @@
             4000,
             16
           ],
-          "fit_sample_seconds": 3.96,
+          "fit_sample_seconds": 4.01,
           "marginal_rmse": 0.002111160411327338,
           "mean_default_rate": 0.024484375,
           "n_unique_scenarios": 195,
@@ -161,7 +171,7 @@
             4000,
             16
           ],
-          "fit_sample_seconds": 0.51,
+          "fit_sample_seconds": 0.53,
           "marginal_rmse": 0.02178975788255229,
           "mean_default_rate": 0.033828125,
           "n_unique_scenarios": 271,
@@ -248,7 +258,7 @@
             4000,
             54
           ],
-          "fit_sample_seconds": 0.82,
+          "fit_sample_seconds": 0.83,
           "marginal_rmse": 0.0018608291660400175,
           "mean_default_rate": 0.012407407407407407,
           "n_unique_scenarios": 367,
@@ -260,7 +270,7 @@
             4000,
             54
           ],
-          "fit_sample_seconds": 56.59,
+          "fit_sample_seconds": 58.8,
           "marginal_rmse": 0.001813708090359923,
           "mean_default_rate": 0.01261111111111111,
           "n_unique_scenarios": 400,

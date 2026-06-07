@@ -222,7 +222,7 @@ def main() -> None:
     ]
 
     plan = {
-        "system": "REAL 38-entity exposure network -- 2008 STRESS, DENSE blocks on hardware",
+        "system": f"REAL {spec.n}-entity exposure network -- 2008 STRESS, DENSE blocks on hardware",
         "n": spec.n,
         "backend": args.backend,
         "partition_source": str(args.partition),
@@ -293,7 +293,7 @@ def main() -> None:
             "shot_batches": list(result.shot_batches),
         })
         live_path.write_text(json.dumps({
-            "run": "200k-shot STRESSED real-network 3-cluster mixture on hardware",
+            "run": f"{args.shots//1000}k-shot STRESSED real-network {len(blocks)}-cluster mixture on hardware",
             "backend": args.backend,
             "shots_per_cluster": args.shots,
             "jobs": live_jobs,

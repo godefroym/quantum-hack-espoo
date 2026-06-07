@@ -1,11 +1,11 @@
 {
-  "run": "200k-shot STRESSED real-network 3-cluster mixture on hardware",
+  "run": "200k-shot STRESSED real-network 4-cluster mixture on hardware",
   "backend": "ibm_boston",
   "shots_per_cluster": 200000,
   "jobs": [
     {
       "cluster": 0,
-      "job_id": "d8ibcqpe8nrc73bi4ha0",
+      "job_id": "d8icv966983c73ds0fa0",
       "backend": "ibm_boston",
       "shots": 200000,
       "shot_batches": [
@@ -15,7 +15,7 @@
     },
     {
       "cluster": 1,
-      "job_id": "d8ibddc2upec739m0t80",
+      "job_id": "d8icvru6983c73ds0fr0",
       "backend": "ibm_boston",
       "shots": 200000,
       "shot_batches": [
@@ -25,7 +25,17 @@
     },
     {
       "cluster": 2,
-      "job_id": "d8ibe3k2upec739m0tu0",
+      "job_id": "d8id0ee6983c73ds0ge0",
+      "backend": "ibm_boston",
+      "shots": 200000,
+      "shot_batches": [
+        100000,
+        100000
+      ]
+    },
+    {
+      "cluster": 3,
+      "job_id": "d8id1042upec739m2tlg",
       "backend": "ibm_boston",
       "shots": 200000,
       "shot_batches": [

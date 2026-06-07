@@ -1,86 +1,56 @@
-REAL 38-ENTITY HARDWARE -- STRESS vs BASELINE COMPARATIVE ANALYSIS
+REAL 48-ENTITY HARDWARE -- STRESS-REGIME COMPARATIVE ANALYSIS
 ====================================================================
-Backend: ibm_boston | 200,000 shots/cluster | same 14/14/10 partition
-BASELINE-HW: real ~0.2% PDs, all 38 below the 2.7% noise floor.
-STRESS-HW:   2008-calibrated ~15% PDs, all 38 ABOVE the floor (SNR mean ~5.6).
+Backend: ibm_boston | 200,000 shots/cluster | k=4 partition sizes [15, 13, 10, 10]
+STRESS-HW:   2008-calibrated ~15% PDs, all 48 ABOVE the 0.027 floor (SNR mean ~5.556).
 SIM-PREVIEW: exact statevector on the stressed spec = the faithful target.
+REFERENCE:   full-network Gaussian-copula joint on the stressed target.
+BASELINE-HW: not reproduced for this network size -- before/after section omitted
+             (run scripts/run_real_cluster_mixture_hardware.py to add it).
 Artifacts: analysis_stress_comparison.json (all numbers), .png, this file.
 
 BOTTOM LINE
 -----------
-Lifting the signal above the noise floor turned the real network from UNMEASURABLE into a
-PARTIAL, structurally-meaningful hardware demonstration -- but NOT a magnitude-faithful one.
-What stress BOUGHT us: the marginal ORDERING moves from noise to a genuinely positive rank signal
-(global Spearman vs target +0.25 baseline -> +0.36 stress), and the within-cluster |corr| recovery becomes
-REAL rather than spurious (71% of target on above-floor targets vs the baseline's noise-manufactured
-correlations on ~0 targets). The cross-cluster coupling is reconstructed (97% of reference) -- but that is the
-classical reconciler, not the device.
-What it did NOT buy: faithful marginal MAGNITUDES. Decoherence still pulls every qubit toward
-0.5, so the overall marginal RMSE vs target stays large (0.187, mean signed
-bias +0.150 = upward pull). The cascade tail is therefore HARDWARE-PERTURBED
-(overstated), not ground truth.
+Lifting the signal above the noise floor makes the real 48-entity network a PARTIAL, structurally-meaningful
+hardware demonstration -- but NOT a magnitude-faithful one.
+Marginal ORDERING vs target: global Spearman +0.35; within-cluster |corr| recovery 72% of target. Cross-cluster
+coupling is reconstructed to 100% of reference -- but by the CLASSICAL reconciler, not the device.
+What it did NOT buy: faithful MAGNITUDES. Decoherence pulls qubits toward 0.5, so overall marginal
+RMSE vs target stays large (0.188, mean signed bias +0.132 = upward pull). The cascade tail
+is therefore HARDWARE-PERTURBED (overstated), not ground truth.
 
 1. STRESS-HW ERROR/FIDELITY vs LOADED TARGET (decoherence vs depth)
 ------------------------------------------------------------------
 cl qub 2q-gates depth | tgt_marg obs_marg  RMSE | Spear | tgt|c| obs|c| recov
-   0      14     478    751 |  0.1070   0.3166   0.238 |  -0.42 |  0.365  0.137    38%
-   1      14     459    702 |  0.2308   0.3339   0.143 |   0.84 |  0.253  0.108    43%
-   2      10     211    455 |  0.0971   0.2306   0.160 |   0.39 |  0.136  0.179   132%
-overall: marginal RMSE 0.187, TV 0.153, global Spearman +0.36, signed bias +0.150
-         within-corr recovery 71%, cross-cluster corr recovery 97% (0.171 vs ref 0.177)
-         default-count TV: HW vs sim-preview 0.256, HW vs reference 0.436
-- Decoherence bias: mix-pull (0=pure,0.5=mixed) tracks depth -- c0=0.32@d751, c1=0.28@d702, c2=0.23@d455. The deepest 14q blocks (478/459 2q-gates) inflate most; the 10q block (211 gates) leaks least.
+   0      15     624    941 |  0.0971   0.3161   0.261 |  -0.63 |  0.338  0.092    27%
+   1      13     408    616 |  0.2910   0.4101   0.191 |   0.84 |  0.119  0.073    62%
+   2      10     222    390 |  0.1159   0.1779   0.090 |   0.65 |  0.348  0.203    58%
+   3      10     148    315 |  0.0800   0.1680   0.113 |  -0.05 |  0.119  0.170   142%
+overall: marginal RMSE 0.188, TV 0.143, global Spearman +0.35, signed bias +0.132
+         within-corr recovery 72%, cross-cluster corr recovery 100% (0.155 vs ref 0.155)
+         default-count TV: HW vs sim-preview 0.221, HW vs reference 0.395
+- Decoherence bias: mix-pull (0=pure,0.5=mixed) tracks depth -- c0=0.32@d941, c1=0.38@d616, c2=0.18@d390, c3=0.17@d315.
+  The deepest block (c0, 15q, 624 2q-gates, depth 941) inflates most; the shallowest (c3, depth 315) leaks least.
 - Even above the floor, marginals are biased UP toward 0.5 -- the magnitudes are NOT trustworthy; the ORDER is.
-
-2. BEFORE/AFTER -- BASELINE-HW vs STRESS-HW (what above-floor signal bought)
-------------------------------------------------------------------
-metric                                   baseline-HW    stress-HW
-marginal RMSE vs target                      0.181        0.187
-marginal Spearman vs target (GLOBAL)         +0.25        +0.36
-  per-cluster Spearman [c0,c1,c2]   base [0.16, 0.2413, 0.4195]  stress [-0.4232, 0.841, 0.3941]
-within-cluster |corr| recovery (mean)        103%          71%
-cross-cluster corr recovery                   95%          97%
-
-   Cascade tail risk (post-contagion count), reconciled global joint:
-   (P(severe) is omitted here: baseline & stress use DIFFERENT references, so it
-    is not comparable across the two runs -- see section 3 for stress-vs-truth.)
-   metric                  baseline-HW   stress-HW   sim-preview
-   CVaR95 cascade count        29.38      35.44      35.51
-   mean cascade count           6.22      16.42      12.31
-   count-TV vs (own) ref       0.923      0.436      0.281
-- Marginal ordering: baseline-HW global Spearman is a weak +0.25 dominated by noise (targets all
-  buried under the floor; per-cluster it is [0.16, 0.24, 0.42]); stress-HW rises to +0.36 GLOBALLY and to
-  +0.84 on cluster 1 -- the device now sees WHICH entities are riskier where the signal is strongest.
-  NOTE: cluster 0 actually regresses (Spearman -0.42): recovery is real but UNEVEN, not uniform.
-- Correlations: the baseline's 103% within-|corr| 'recovery' is SPURIOUS -- noise manufacturing
-  correlation on ~0 targets (per-cluster up to 186%). Stress-HW's 71% is a GENUINE retention of real,
-  above-floor entanglement structure. So the honest story is spurious->real, not low->high.
-- Cascade: baseline-HW's reconciled count law is TV 0.92 from its own reference (no signal, ~ the
-  independent baseline); stress-HW closes that to TV 0.44 -- markedly closer to the right distribution,
-  though still OVERSTATED by the marginal inflation (see section 3).
 
 3. GROUND-TRUTH FRAMING -- stress-HW vs sim-preview vs reference (tail risk)
 ------------------------------------------------------------------
+severe = post-cascade default count >= 24 (of 48)
 metric                  reference   sim-preview(faithful)   stress-HW
-P(severe)                  0.145           0.213           0.338
-CVaR95 cascade count       33.01           35.51           35.44
-mean cascade count          7.99           12.31           16.42
-marginal RMSE vs ref          --             0.136           0.187
-count-TV vs ref               --             0.281           0.436
-- Hardware lands ABOVE the faithful sim-preview on every tail metric: it overstates P(severe)
-  (0.34 vs sim 0.21, ref 0.15) and mean cascade (16.4 vs sim 12.3). CVaR is
-  closer (saturates near the system size). The HW reconciled count-distribution sits TV 0.26 from
-  the faithful sim-preview -- same regime, hardware-perturbed.
+P(severe)                  0.091           0.180           0.255
+CVaR95 cascade count       42.28           43.68           44.64
+mean cascade count          8.92           13.51           18.38
+marginal RMSE vs ref          --             0.103           0.188
+count-TV vs ref               --             0.226           0.395
+- Hardware overstates P(severe) (0.26 vs sim 0.18, ref 0.09) and mean cascade (18.4
+  vs sim 13.5). The HW reconciled count-distribution sits TV 0.22 from the
+  faithful sim-preview -- same regime, hardware-perturbed.
 
 VERDICT
 -------
-YES -- the stress regime makes the real 38-entity network a LEGITIMATE, if qualified, hardware
-demonstration. Above the noise floor the QPU recovers a real (if uneven) marginal ORDERING and
-GENUINELY retains within-cluster correlation (71% of target) instead of the baseline's noise-manufactured
-spurious correlation -- and the cascade count law moves from TV 0.92 (no signal) to TV 0.44 vs truth.
-This is a real signal, not decoherence -- the before/after vs the buried baseline is unambiguous.
-CAVEATS: (1) marginal MAGNITUDES remain decoherence-biased upward toward 0.5 (RMSE ~0.19),
-so absolute PDs are not trustworthy; (2) the cascade tail numbers are therefore HARDWARE-PERTURBED and
-overstate risk relative to the faithful sim-preview; (3) the cross-cluster correlation is rebuilt by
-the CLASSICAL reconciler (fit to the spec target), not measured on the device. Honest framing:
-a correlation/ordering-faithful hardware demo, magnitude- and tail-perturbed.
+The stress regime makes the real 48-entity network a LEGITIMATE, if qualified, hardware demonstration:
+above the noise floor the QPU recovers a real (if uneven) marginal ORDERING (global Spearman +0.35)
+and retains within-cluster correlation (72% of target).
+CAVEATS: (1) marginal MAGNITUDES stay decoherence-biased upward (RMSE ~0.19), so absolute PDs
+are not trustworthy; (2) the cascade tail numbers are HARDWARE-PERTURBED and overstate risk vs the faithful
+sim-preview; (3) the cross-cluster correlation is rebuilt by the CLASSICAL reconciler, not measured on-device.
+Honest framing: a correlation/ordering-faithful hardware demo, magnitude- and tail-perturbed.
