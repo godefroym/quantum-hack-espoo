@@ -1,0 +1,338 @@
+{
+  "title": "Stress-regime hardware comparative analysis (REAL 38-entity network)",
+  "backend": "ibm_boston",
+  "partition": {
+    "cluster_sizes": [
+      14,
+      14,
+      10
+    ],
+    "n": 38
+  },
+  "noise_floor": 0.027,
+  "regimes": {
+    "baseline_hw": "real PDs (~0.2% mean), all 38 below 2.7% floor",
+    "stress_hw": "2008-calibrated PDs (~15% mean), all 38 above floor",
+    "sim_preview": "exact statevector on the stressed spec (faithful target)"
+  },
+  "1_stress_hw_fidelity": {
+    "per_cluster": [
+      {
+        "run": "stress_hw",
+        "cluster": 0,
+        "qubits": 14,
+        "transpiled_depth": 751,
+        "transpiled_2q_gates": 478,
+        "target_marg_mean": 0.10697,
+        "target_marg_min": 0.05687,
+        "target_marg_max": 0.23799,
+        "all_target_below_noise_floor": false,
+        "n_target_above_floor": 14,
+        "obs_marg_mean": 0.31656,
+        "marginal_rmse_vs_target": 0.23834,
+        "marginal_tv_vs_target": 0.20958,
+        "marginal_spearman_vs_target": -0.4232,
+        "target_within_abs_corr": 0.3647,
+        "obs_within_abs_corr": 0.1368,
+        "within_corr_recovery_fraction": 0.3751,
+        "marginal_mix_pull": 0.31656,
+        "marginal_signed_bias": 0.20958
+      },
+      {
+        "run": "stress_hw",
+        "cluster": 1,
+        "qubits": 14,
+        "transpiled_depth": 702,
+        "transpiled_2q_gates": 459,
+        "target_marg_mean": 0.23079,
+        "target_marg_min": 0.07443,
+        "target_marg_max": 0.58605,
+        "all_target_below_noise_floor": false,
+        "n_target_above_floor": 14,
+        "obs_marg_mean": 0.33392,
+        "marginal_rmse_vs_target": 0.14276,
+        "marginal_tv_vs_target": 0.1108,
+        "marginal_spearman_vs_target": 0.841,
+        "target_within_abs_corr": 0.2526,
+        "obs_within_abs_corr": 0.1082,
+        "within_corr_recovery_fraction": 0.4283,
+        "marginal_mix_pull": 0.27611,
+        "marginal_signed_bias": 0.10312
+      },
+      {
+        "run": "stress_hw",
+        "cluster": 2,
+        "qubits": 10,
+        "transpiled_depth": 455,
+        "transpiled_2q_gates": 211,
+        "target_marg_mean": 0.09713,
+        "target_marg_min": 0.027,
+        "target_marg_max": 0.23799,
+        "all_target_below_noise_floor": false,
+        "n_target_above_floor": 10,
+        "obs_marg_mean": 0.23065,
+        "marginal_rmse_vs_target": 0.15975,
+        "marginal_tv_vs_target": 0.13352,
+        "marginal_spearman_vs_target": 0.3941,
+        "target_within_abs_corr": 0.1363,
+        "obs_within_abs_corr": 0.1794,
+        "within_corr_recovery_fraction": 1.3162,
+        "marginal_mix_pull": 0.23065,
+        "marginal_signed_bias": 0.13352
+      }
+    ],
+    "overall": {
+      "marginal_rmse_vs_target": 0.18749,
+      "marginal_tv_vs_target": 0.15317,
+      "marginal_spearman_vs_target_global": 0.3618,
+      "mean_signed_bias": 0.15035,
+      "target_mean": 0.15,
+      "obs_mean": 0.30035,
+      "mean_within_corr_recovery_fraction": 0.7065,
+      "cross_cluster_corr_reconciled": 0.17096,
+      "cross_cluster_corr_reference": 0.17711,
+      "cross_cluster_corr_recovery_fraction": 0.9653,
+      "count_tv_hw_vs_simpreview": 0.25643,
+      "count_tv_hw_vs_reference": 0.43558
+    }
+  },
+  "2_before_after_baseline_vs_stress": {
+    "baseline_per_cluster": [
+      {
+        "run": "baseline_hw",
+        "cluster": 0,
+        "qubits": 14,
+        "transpiled_depth": 893,
+        "transpiled_2q_gates": 488,
+        "target_marg_mean": 0.00126,
+        "target_marg_min": 0.0006,
+        "target_marg_max": 0.0031,
+        "all_target_below_noise_floor": true,
+        "n_target_above_floor": 0,
+        "obs_marg_mean": 0.20107,
+        "marginal_rmse_vs_target": 0.22511,
+        "marginal_tv_vs_target": 0.1998,
+        "marginal_spearman_vs_target": 0.16,
+        "target_within_abs_corr": 0.1492,
+        "obs_within_abs_corr": 0.0555,
+        "within_corr_recovery_fraction": 0.372,
+        "marginal_mix_pull": 0.20107,
+        "marginal_signed_bias": 0.1998
+      },
+      {
+        "run": "baseline_hw",
+        "cluster": 1,
+        "qubits": 14,
+        "transpiled_depth": 601,
+        "transpiled_2q_gates": 383,
+        "target_marg_mean": 0.00426,
+        "target_marg_min": 0.0008,
+        "target_marg_max": 0.0139,
+        "all_target_below_noise_floor": true,
+        "n_target_above_floor": 0,
+        "obs_marg_mean": 0.15701,
+        "marginal_rmse_vs_target": 0.19599,
+        "marginal_tv_vs_target": 0.15274,
+        "marginal_spearman_vs_target": 0.2413,
+        "target_within_abs_corr": 0.0838,
+        "obs_within_abs_corr": 0.0718,
+        "within_corr_recovery_fraction": 0.8568,
+        "marginal_mix_pull": 0.14934,
+        "marginal_signed_bias": 0.15274
+      },
+      {
+        "run": "baseline_hw",
+        "cluster": 2,
+        "qubits": 10,
+        "transpiled_depth": 105,
+        "transpiled_2q_gates": 38,
+        "target_marg_mean": 0.00112,
+        "target_marg_min": 1e-05,
+        "target_marg_max": 0.0031,
+        "all_target_below_noise_floor": true,
+        "n_target_above_floor": 0,
+        "obs_marg_mean": 0.01635,
+        "marginal_rmse_vs_target": 0.01956,
+        "marginal_tv_vs_target": 0.01523,
+        "marginal_spearman_vs_target": 0.4195,
+        "target_within_abs_corr": 0.0357,
+        "obs_within_abs_corr": 0.0663,
+        "within_corr_recovery_fraction": 1.8571,
+        "marginal_mix_pull": 0.01635,
+        "marginal_signed_bias": 0.01523
+      }
+    ],
+    "stress_per_cluster": [
+      {
+        "run": "stress_hw",
+        "cluster": 0,
+        "qubits": 14,
+        "transpiled_depth": 751,
+        "transpiled_2q_gates": 478,
+        "target_marg_mean": 0.10697,
+        "target_marg_min": 0.05687,
+        "target_marg_max": 0.23799,
+        "all_target_below_noise_floor": false,
+        "n_target_above_floor": 14,
+        "obs_marg_mean": 0.31656,
+        "marginal_rmse_vs_target": 0.23834,
+        "marginal_tv_vs_target": 0.20958,
+        "marginal_spearman_vs_target": -0.4232,
+        "target_within_abs_corr": 0.3647,
+        "obs_within_abs_corr": 0.1368,
+        "within_corr_recovery_fraction": 0.3751,
+        "marginal_mix_pull": 0.31656,
+        "marginal_signed_bias": 0.20958
+      },
+      {
+        "run": "stress_hw",
+        "cluster": 1,
+        "qubits": 14,
+        "transpiled_depth": 702,
+        "transpiled_2q_gates": 459,
+        "target_marg_mean": 0.23079,
+        "target_marg_min": 0.07443,
+        "target_marg_max": 0.58605,
+        "all_target_below_noise_floor": false,
+        "n_target_above_floor": 14,
+        "obs_marg_mean": 0.33392,
+        "marginal_rmse_vs_target": 0.14276,
+        "marginal_tv_vs_target": 0.1108,
+        "marginal_spearman_vs_target": 0.841,
+        "target_within_abs_corr": 0.2526,
+        "obs_within_abs_corr": 0.1082,
+        "within_corr_recovery_fraction": 0.4283,
+        "marginal_mix_pull": 0.27611,
+        "marginal_signed_bias": 0.10312
+      },
+      {
+        "run": "stress_hw",
+        "cluster": 2,
+        "qubits": 10,
+        "transpiled_depth": 455,
+        "transpiled_2q_gates": 211,
+        "target_marg_mean": 0.09713,
+        "target_marg_min": 0.027,
+        "target_marg_max": 0.23799,
+        "all_target_below_noise_floor": false,
+        "n_target_above_floor": 10,
+        "obs_marg_mean": 0.23065,
+        "marginal_rmse_vs_target": 0.15975,
+        "marginal_tv_vs_target": 0.13352,
+        "marginal_spearman_vs_target": 0.3941,
+        "target_within_abs_corr": 0.1363,
+        "obs_within_abs_corr": 0.1794,
+        "within_corr_recovery_fraction": 1.3162,
+        "marginal_mix_pull": 0.23065,
+        "marginal_signed_bias": 0.13352
+      }
+    ],
+    "summary": {
+      "marginal_rmse_vs_target": {
+        "baseline_hw": 0.18145,
+        "stress_hw": 0.18749
+      },
+      "marginal_spearman_vs_target_global": {
+        "baseline_hw": 0.2485,
+        "stress_hw": 0.3618
+      },
+      "marginal_spearman_per_cluster": {
+        "baseline_hw": [
+          0.16,
+          0.2413,
+          0.4195
+        ],
+        "stress_hw": [
+          -0.4232,
+          0.841,
+          0.3941
+        ]
+      },
+      "mean_within_corr_recovery_fraction": {
+        "baseline_hw": 1.0286,
+        "stress_hw": 0.7065
+      },
+      "within_corr_recovery_per_cluster": {
+        "baseline_hw": [
+          0.372,
+          0.8568,
+          1.8571
+        ],
+        "stress_hw": [
+          0.3751,
+          0.4283,
+          1.3162
+        ]
+      },
+      "cross_cluster_corr_recovery_fraction": {
+        "baseline_hw": 0.9452,
+        "stress_hw": 0.9653
+      }
+    },
+    "cascade_tail_risk": {
+      "baseline_hw": {
+        "p_severe_reference": NaN,
+        "p_severe_reconciled": NaN,
+        "p_severe_independent": NaN,
+        "cvar_reference": 1.7358,
+        "cvar_reconciled": 29.3765,
+        "cvar_independent": 24.5767,
+        "mean_cascade_reference": 0.1067,
+        "mean_cascade_reconciled": 6.2207,
+        "mean_cascade_independent": 5.9428,
+        "count_tv_reconciled_vs_ref": 0.92289
+      },
+      "stress_hw": {
+        "p_severe_reference": 0.1455,
+        "p_severe_reconciled": 0.33825,
+        "p_severe_independent": 0.28575,
+        "cvar_reference": 33.0103,
+        "cvar_reconciled": 35.4395,
+        "cvar_independent": 34.5,
+        "mean_cascade_reference": 7.9893,
+        "mean_cascade_reconciled": 16.4155,
+        "mean_cascade_independent": 16.1028,
+        "count_tv_reconciled_vs_ref": 0.43558
+      },
+      "sim_preview": {
+        "p_severe_reference": 0.1455,
+        "p_severe_reconciled": 0.2135,
+        "p_severe_independent": 0.1475,
+        "cvar_reference": 33.0103,
+        "cvar_reconciled": 35.5094,
+        "cvar_independent": 34.0411,
+        "mean_cascade_reference": 7.9893,
+        "mean_cascade_reconciled": 12.3123,
+        "mean_cascade_independent": 11.5143,
+        "count_tv_reconciled_vs_ref": 0.28052
+      }
+    }
+  },
+  "3_ground_truth_framing": {
+    "note": "reference = full-network Gaussian-copula joint on the STRESSED target; sim_preview = exact statevector (faithful); stress_hw = ibm_boston.",
+    "p_severe": {
+      "reference": 0.1455,
+      "sim_preview": 0.2135,
+      "stress_hw": 0.33825
+    },
+    "cascade_cvar95": {
+      "reference": 33.0103,
+      "sim_preview": 35.5094,
+      "stress_hw": 35.4395
+    },
+    "mean_cascade_count": {
+      "reference": 7.9893,
+      "sim_preview": 12.3123,
+      "stress_hw": 16.4155
+    },
+    "marginal_rmse_vs_ref": {
+      "sim_preview": 0.13564,
+      "stress_hw": 0.18724
+    },
+    "count_tv_vs_ref": {
+      "sim_preview": 0.28052,
+      "stress_hw": 0.43558
+    },
+    "stress_hw_vs_simpreview_count_tv": 0.25643
+  }
+}

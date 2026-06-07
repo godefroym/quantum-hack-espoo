@@ -1,0 +1,39 @@
+qubit,ticker,name,node_type,business_type,region,cluster,bloc
+0,JPM,"JPMorgan Chase",bank,universal,US,0,A:US/Canada banks
+1,BAC,"Bank of America",bank,universal,US,0,A:US/Canada banks
+2,C,"Citigroup",bank,universal,US,0,A:US/Canada banks
+3,WFC,"Wells Fargo",bank,universal,US,0,A:US/Canada banks
+4,GS,"Goldman Sachs",bank,investment,US,0,A:US/Canada banks
+5,MS,"Morgan Stanley",bank,investment,US,0,A:US/Canada banks
+6,USB,"U.S. Bancorp",bank,regional,US,0,A:US/Canada banks
+7,PNC,"PNC Financial",bank,regional,US,0,A:US/Canada banks
+8,TFC,"Truist Financial",bank,regional,US,0,A:US/Canada banks
+9,BK,"Bank of New York Mellon",bank,custodian,US,0,A:US/Canada banks
+10,STT,"State Street",bank,custodian,US,0,A:US/Canada banks
+11,HSBC,"HSBC Holdings",bank,universal,UK,1,B:Europe/UK+LatAm
+12,BCS,"Barclays",bank,universal,UK,1,B:Europe/UK+LatAm
+13,LYG,"Lloyds Banking Group",bank,regional,UK,1,B:Europe/UK+LatAm
+14,DB,"Deutsche Bank",bank,universal,EU,1,B:Europe/UK+LatAm
+15,SAN,"Banco Santander",bank,universal,EU,1,B:Europe/UK+LatAm
+16,BBVA,"Banco Bilbao Vizcaya Argentaria",bank,universal,EU,1,B:Europe/UK+LatAm
+17,ING,"ING Groep",bank,universal,EU,1,B:Europe/UK+LatAm
+18,UBS,"UBS Group",bank,investment,EU,1,B:Europe/UK+LatAm
+19,MUFG,"Mitsubishi UFJ Financial Group",bank,universal,JP,2,C:Japan+corporates
+20,SMFG,"Sumitomo Mitsui Financial Group",bank,universal,JP,2,C:Japan+corporates
+21,MFG,"Mizuho Financial Group",bank,universal,JP,2,C:Japan+corporates
+22,NMR,"Nomura Holdings",bank,investment,JP,2,C:Japan+corporates
+23,RY,"Royal Bank of Canada",bank,universal,CA,0,A:US/Canada banks
+24,TD,"Toronto-Dominion Bank",bank,universal,CA,0,A:US/Canada banks
+25,BNS,"Bank of Nova Scotia",bank,universal,CA,0,A:US/Canada banks
+26,ITUB,"Itau Unibanco",bank,universal,LATAM,1,B:Europe/UK+LatAm
+27,BBD,"Banco Bradesco",bank,universal,LATAM,1,B:Europe/UK+LatAm
+28,AAPL,"Apple",corporate,technology,US,2,C:Japan+corporates
+29,MSFT,"Microsoft",corporate,technology,US,2,C:Japan+corporates
+30,XOM,"ExxonMobil",corporate,energy,US,2,C:Japan+corporates
+31,WMT,"Walmart",corporate,retail,US,2,C:Japan+corporates
+32,BA,"Boeing",corporate,aerospace,US,1,B:Europe/UK+LatAm
+33,T,"AT&T",corporate,telecom,US,2,C:Japan+corporates
+34,TM,"Toyota Motor",corporate,automotive,JP,2,C:Japan+corporates
+35,VWAGY,"Volkswagen",corporate,automotive,EU,1,B:Europe/UK+LatAm
+36,SIEGY,"Siemens",corporate,industrial,EU,1,B:Europe/UK+LatAm
+37,PBR,"Petrobras",corporate,energy,LATAM,1,B:Europe/UK+LatAm

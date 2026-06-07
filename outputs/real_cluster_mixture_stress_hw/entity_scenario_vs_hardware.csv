@@ -1,0 +1,39 @@
+qubit,ticker,name,node_type,business_type,region,cluster,bloc,baseline_target_pd,ber_pd,gcop_pd,tcop_pd,ebm_pd,hw_stressed_target_pd,hw_observed_pd,ebm_mean_abs_corr,hw_mean_abs_corr
+0,JPM,JPMorgan Chase,bank,universal,US,0,A:US/Canada banks,0.0008,0.00025,0.001,0.00125,0.001,0.07443,0.20142,0.04133,0.1682
+1,BAC,Bank of America,bank,universal,US,0,A:US/Canada banks,0.0008,0.00125,0.00125,0.00125,0.00025,0.07443,0.12272,0.04992,0.13893
+2,C,Citigroup,bank,universal,US,0,A:US/Canada banks,0.0031,0.00325,0.005,0.00275,0.00225,0.23799,0.252295,0.0268,0.1948
+3,WFC,Wells Fargo,bank,universal,US,0,A:US/Canada banks,0.0031,0.00425,0.0025,0.00275,0.00225,0.23799,0.34564,0.06457,0.17251
+4,GS,Goldman Sachs,bank,investment,US,0,A:US/Canada banks,0.0031,0.0045,0.003,0.004,0.0035,0.23799,0.300125,0.02649,0.18025
+5,MS,Morgan Stanley,bank,investment,US,0,A:US/Canada banks,0.0008,0.0005,0.0015,0.0015,0.00025,0.07443,0.282445,0.02336,0.17795
+6,USB,U.S. Bancorp,bank,regional,US,0,A:US/Canada banks,0.0008,0.0005,0.00025,0.0005,0.0005,0.07443,0.328135,0.04769,0.18755
+7,PNC,PNC Financial,bank,regional,US,0,A:US/Canada banks,0.0008,0.00025,0.0005,0.00175,0.0005,0.07443,0.32881,0.08795,0.15036
+8,TFC,Truist Financial,bank,regional,US,0,A:US/Canada banks,0.0008,0.001,0.0,0.001,0.0005,0.07443,0.31971,0.08303,0.15175
+9,BK,Bank of New York Mellon,bank,custodian,US,0,A:US/Canada banks,0.0008,0.001,0.0005,0.00125,0.00075,0.07443,0.33871,0.09176,0.19976
+10,STT,State Street,bank,custodian,US,0,A:US/Canada banks,0.0008,0.00025,0.0,0.0005,0.001,0.07443,0.36881,0.04018,0.14846
+11,HSBC,HSBC Holdings,bank,universal,UK,1,B:Europe/UK+LatAm,0.0008,0.001,0.001,0.0005,0.00025,0.07443,0.14402,0.00058,0.17252
+12,BCS,Barclays,bank,universal,UK,1,B:Europe/UK+LatAm,0.0031,0.003,0.00125,0.00425,0.0025,0.23799,0.184675,0.06383,0.19099
+13,LYG,Lloyds Banking Group,bank,regional,UK,1,B:Europe/UK+LatAm,0.0031,0.00275,0.00175,0.0035,0.00175,0.23799,0.2475,0.03581,0.19028
+14,DB,Deutsche Bank,bank,universal,EU,1,B:Europe/UK+LatAm,0.0008,0.00025,0.0005,0.00075,0.0005,0.07443,0.238715,0.03914,0.131
+15,SAN,Banco Santander,bank,universal,EU,1,B:Europe/UK+LatAm,0.0008,0.00075,0.0005,0.001,0.00025,0.07443,0.14725,0.03839,0.15687
+16,BBVA,Banco Bilbao Vizcaya Argentaria,bank,universal,EU,1,B:Europe/UK+LatAm,0.0008,0.001,0.0005,0.00125,0.00025,0.07443,0.178435,0.0303,0.15124
+17,ING,ING Groep,bank,universal,EU,1,B:Europe/UK+LatAm,0.0008,0.00075,0.00075,0.00125,0.00025,0.07443,0.14978,0.02011,0.16274
+18,UBS,UBS Group,bank,investment,EU,1,B:Europe/UK+LatAm,0.0008,0.00225,0.0015,0.00125,0.0015,0.07443,0.157315,0.03847,0.13889
+19,MUFG,Mitsubishi UFJ Financial Group,bank,universal,JP,2,C:Japan+corporates,0.0008,0.00125,0.00125,0.00075,0.00125,0.07443,0.183495,0.03593,0.14288
+20,SMFG,Sumitomo Mitsui Financial Group,bank,universal,JP,2,C:Japan+corporates,0.0008,0.00025,0.0015,0.0005,0.00025,0.07443,0.11171,0.03633,0.14727
+21,MFG,Mizuho Financial Group,bank,universal,JP,2,C:Japan+corporates,0.0008,0.0015,0.00075,0.0015,0.001,0.07443,0.10922,0.03778,0.13342
+22,NMR,Nomura Holdings,bank,investment,JP,2,C:Japan+corporates,0.0031,0.00425,0.00425,0.004,0.00175,0.23799,0.288605,0.02124,0.25934
+23,RY,Royal Bank of Canada,bank,universal,CA,0,A:US/Canada banks,0.0006,0.0005,0.00025,0.0005,0.00025,0.05687,0.38576,0.00058,0.14376
+24,TD,Toronto-Dominion Bank,bank,universal,CA,0,A:US/Canada banks,0.0006,0.001,0.00025,0.00075,0.0,0.05687,0.424345,0.0,0.12569
+25,BNS,Bank of Nova Scotia,bank,universal,CA,0,A:US/Canada banks,0.0008,0.00075,0.0005,0.0015,0.00075,0.07443,0.431225,0.03975,0.11565
+26,ITUB,Itau Unibanco,bank,universal,LATAM,1,B:Europe/UK+LatAm,0.0139,0.013,0.01325,0.0145,0.01525,0.58605,0.59254,0.02456,0.116
+27,BBD,Banco Bradesco,bank,universal,LATAM,1,B:Europe/UK+LatAm,0.0139,0.01375,0.011,0.011,0.015,0.58605,0.62206,0.02238,0.0689
+28,AAPL,Apple,corporate,technology,US,2,C:Japan+corporates,0.0006,0.0005,0.00025,0.00025,0.0005,0.05687,0.267475,0.00082,0.24562
+29,MSFT,Microsoft,corporate,technology,US,2,C:Japan+corporates,1e-05,0.0,0.0,0.0,0.0,0.027,0.081585,0.0,0.09642
+30,XOM,ExxonMobil,corporate,energy,US,2,C:Japan+corporates,0.0006,0.001,0.00075,0.0,0.0005,0.05687,0.259915,0.01034,0.24594
+31,WMT,Walmart,corporate,retail,US,2,C:Japan+corporates,0.0006,0.00025,0.00075,0.00075,0.001,0.05687,0.29559,0.01067,0.19866
+32,BA,Boeing,corporate,aerospace,US,1,B:Europe/UK+LatAm,0.0031,0.003,0.0035,0.00275,0.00225,0.23799,0.44284,0.00261,0.13309
+33,T,AT&T,corporate,telecom,US,2,C:Japan+corporates,0.0031,0.00275,0.004,0.003,0.003,0.23799,0.35104,0.02147,0.19507
+34,TM,Toyota Motor,corporate,automotive,JP,2,C:Japan+corporates,0.0008,0.0015,0.00075,0.00075,0.00075,0.07443,0.356105,0.001,0.19643
+35,VWAGY,Volkswagen,corporate,automotive,EU,1,B:Europe/UK+LatAm,0.0031,0.00375,0.0035,0.00325,0.00175,0.23799,0.45663,0.02705,0.12818
+36,SIEGY,Siemens,corporate,industrial,EU,1,B:Europe/UK+LatAm,0.0008,0.00075,0.0,0.0015,0.001,0.07443,0.420635,0.01123,0.12846
+37,PBR,Petrobras,corporate,energy,LATAM,1,B:Europe/UK+LatAm,0.0139,0.0125,0.01575,0.00975,0.014,0.58605,0.688175,0.01877,0.05206

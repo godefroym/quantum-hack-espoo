@@ -31,6 +31,12 @@ from systemic_risk.data_network.assemble import (
     build_synthetic_system_spec,
     build_system_spec,
 )
+from systemic_risk.data_network.stress import (
+    QPU_NOISE_FLOOR,
+    StressCalibration,
+    apply_stress,
+    stressed_marginals,
+)
 
 __all__ = [
     "EmpiricalLayer",
@@ -44,4 +50,9 @@ __all__ = [
     "build_synthetic_system_spec",  # calibrated-synthetic, scales to n=54
     # --- the layered builder (returns a NetworkSpec) ---
     "build_network_spec",
+    # --- 2008 stress transform (baseline SystemSpec -> crisis SystemSpec) ---
+    "apply_stress",
+    "stressed_marginals",
+    "StressCalibration",
+    "QPU_NOISE_FLOOR",
 ]

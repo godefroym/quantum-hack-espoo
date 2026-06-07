@@ -1,0 +1,45 @@
+PER-ENTITY: COMMITTED SCENARIO DATASET vs HARDWARE JOINT (ibm_boston)
+======================================================================
+Entities: 38 named real G-SIBs/corporates (one per qubit).
+Dataset : 4000 samples/generator on the BASELINE spec (mean PD 0.0023).
+Hardware: 140069 unique bitstrings on the STRESSED spec
+          (stressed target mean PD 0.150, observed 0.300 -- decohered up toward 0.5).
+
+MAGNITUDES ARE REGIME-MISMATCHED (baseline vs stressed); compare STRUCTURE.
+
+GENERATOR vs HARDWARE -- cross-entity structure agreement
+----------------------------------------------------------------------
+source                  marg-Spear  corr-Spear  corr-RMSE  conn-Spear
+bernoulli                   +0.356      +0.066      0.178      -0.006
+gaussian_copula             +0.141      -0.068      0.180      -0.040
+student_t_copula            +0.366      -0.049      0.180      -0.036
+entangled_born_machine      +0.456      +0.029      0.187      +0.040
+baseline_target_spec            --      +0.031      0.343      +0.141
+
+Rare-event wall: at ~0.2% PDs a co-default is essentially never observed in 4000 samples,
+so empirical pairwise correlations are noise (and 2/38 entities never default at all -> undefined, set 0).
+The 'baseline_target_spec' row uses the spec's INTENDED correlation instead -- the honest
+structural reference at baseline PDs. This is exactly what motivates stressing the spec.
+
+WITHIN-REGIME marginal rank fidelity (each source vs its OWN target)
+----------------------------------------------------------------------
+  bernoulli                        Spearman +0.701
+  gaussian_copula                  Spearman +0.683
+  student_t_copula                 Spearman +0.772
+  entangled_born_machine           Spearman +0.686
+  hw_vs_stressed_target            Spearman +0.355
+
+TOP-10 ENTITIES BY HARDWARE-OBSERVED CONNECTIVITY (mean |corr|)
+----------------------------------------------------------------------
+name                               clu  hw|corr|  ebm|corr|   hw_pd   ebm_pd
+Nomura Holdings                      2     0.259      0.021   0.289   0.0018
+ExxonMobil                           2     0.246      0.010   0.260   0.0005
+Apple                                2     0.246      0.001   0.267   0.0005
+Bank of New York Mellon              0     0.200      0.092   0.339   0.0008
+Walmart                              2     0.199      0.011   0.296   0.0010
+Toyota Motor                         2     0.196      0.001   0.356   0.0008
+AT&T                                 2     0.195      0.021   0.351   0.0030
+Citigroup                            0     0.195      0.027   0.252   0.0022
+Barclays                             1     0.191      0.064   0.185   0.0025
+Lloyds Banking Group                 1     0.190      0.036   0.247   0.0018
+
