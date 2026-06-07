@@ -83,7 +83,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def stressed_real_bank_spec(target_mean_pd: float = 0.05) -> SystemSpec:
-    """Return all 28 banks, excluding corporates, with a transparent PD stress shift."""
+    """Return all banks, excluding corporates, with a transparent PD stress shift."""
     return stressed_real_institution_spec(target_mean_pd, include_corporates=False)
 
 
@@ -100,9 +100,8 @@ def stressed_real_institution_spec(
     selected_indices = np.arange(full.n) if include_corporates else np.array(
         [index for index, node_type in enumerate(full.node_types) if node_type != "corporate"]
     )
-    expected = 38 if include_corporates else 28
-    if len(selected_indices) != expected:
-        raise RuntimeError(f"expected {expected} real institutions, found {len(selected_indices)}")
+    if len(selected_indices) == 0:
+        raise RuntimeError("no real institutions selected from the network")
 
     base_pd = np.clip(full.marginal_default_probs[selected_indices], 1e-8, 1.0 - 1e-8)
     shift = brentq(
@@ -112,10 +111,13 @@ def stressed_real_institution_spec(
     )
     stressed_pd = expit(logit(base_pd) + shift)
     grid = np.ix_(selected_indices, selected_indices)
+    selected_types = [full.node_types[i] for i in selected_indices]
+    n_banks = selected_types.count("bank")
+    n_corporates = selected_types.count("corporate")
     subset = (
-        "38 real institutions: 28 banks and 10 corporates"
+        f"{len(selected_indices)} real institutions: {n_banks} banks and {n_corporates} corporates"
         if include_corporates
-        else "28 financial institutions; corporates excluded"
+        else f"{n_banks} financial institutions; corporates excluded"
     )
     spec = SystemSpec(
         node_names=[full.node_names[i] for i in selected_indices],

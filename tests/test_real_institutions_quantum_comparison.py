@@ -28,7 +28,7 @@ SCRIPT_SPEC.loader.exec_module(SCRIPT_MODULE)
 def test_stressed_real_bank_spec_contains_all_banks_and_no_corporates() -> None:
     spec = SCRIPT_MODULE.stressed_real_bank_spec(0.05)
 
-    assert spec.n == 28
+    assert spec.n == 38
     assert set(spec.node_types) == {"bank"}
     assert abs(float(spec.marginal_default_probs.mean()) - 0.05) < 1e-12
 
@@ -36,8 +36,8 @@ def test_stressed_real_bank_spec_contains_all_banks_and_no_corporates() -> None:
 def test_stressed_real_institution_spec_contains_banks_and_corporates() -> None:
     spec = SCRIPT_MODULE.stressed_real_institution_spec(0.05)
 
-    assert spec.n == 38
-    assert spec.node_types.count("bank") == 28
+    assert spec.n == 48
+    assert spec.node_types.count("bank") == 38
     assert spec.node_types.count("corporate") == 10
     assert abs(float(spec.marginal_default_probs.mean()) - 0.05) < 1e-12
 
@@ -46,7 +46,7 @@ def test_real_bank_chain_has_two_entanglement_layers_and_calibrates() -> None:
     spec = SCRIPT_MODULE.stressed_real_bank_spec(0.05)
     block = SCRIPT_MODULE.fitted_chain(spec)
 
-    assert len(block.edges) == 27
+    assert len(block.edges) == spec.n - 1
     assert block.entanglement_depth == 2
     marginals, _ = SCRIPT_MODULE.mps_backend.block_moments(
         block.ry, block.edges, block.cry
