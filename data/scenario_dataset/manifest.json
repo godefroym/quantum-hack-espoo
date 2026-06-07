@@ -1,0 +1,285 @@
+{
+  "n_samples": 4000,
+  "seed": 12345,
+  "sources": {
+    "real_gsib": {
+      "kind": "real",
+      "n_institutions": 38,
+      "node_names": [
+        "JPMorgan Chase",
+        "Bank of America",
+        "Citigroup",
+        "Wells Fargo",
+        "Goldman Sachs",
+        "Morgan Stanley",
+        "U.S. Bancorp",
+        "PNC Financial",
+        "Truist Financial",
+        "Bank of New York Mellon",
+        "State Street",
+        "HSBC Holdings",
+        "Barclays",
+        "Lloyds Banking Group",
+        "Deutsche Bank",
+        "Banco Santander",
+        "Banco Bilbao Vizcaya Argentaria",
+        "ING Groep",
+        "UBS Group",
+        "Mitsubishi UFJ Financial Group",
+        "Sumitomo Mitsui Financial Group",
+        "Mizuho Financial Group",
+        "Nomura Holdings",
+        "Royal Bank of Canada",
+        "Toronto-Dominion Bank",
+        "Bank of Nova Scotia",
+        "Itau Unibanco",
+        "Banco Bradesco",
+        "Apple",
+        "Microsoft",
+        "ExxonMobil",
+        "Walmart",
+        "Boeing",
+        "AT&T",
+        "Toyota Motor",
+        "Volkswagen",
+        "Siemens",
+        "Petrobras"
+      ],
+      "marginals_mean": 0.0023318421052631578,
+      "generators": {
+        "bernoulli": {
+          "shape": [
+            4000,
+            38
+          ],
+          "fit_sample_seconds": 0.0,
+          "marginal_rmse": 0.0006052424481582826,
+          "mean_default_rate": 0.0023947368421052633,
+          "n_unique_scenarios": 54,
+          "corr_rmse": 0.46893489166667135,
+          "degenerate": false
+        },
+        "gaussian_copula": {
+          "shape": [
+            4000,
+            38
+          ],
+          "fit_sample_seconds": 0.04,
+          "marginal_rmse": 0.0008746442885990552,
+          "mean_default_rate": 0.0022500000000000003,
+          "n_unique_scenarios": 72,
+          "corr_rmse": 0.44637849208606306,
+          "degenerate": false
+        },
+        "student_t_copula": {
+          "shape": [
+            4000,
+            38
+          ],
+          "fit_sample_seconds": 24.7,
+          "marginal_rmse": 0.0009536301832030011,
+          "mean_default_rate": 0.002348684210526316,
+          "n_unique_scenarios": 72,
+          "corr_rmse": 0.3678959557141127,
+          "degenerate": false
+        },
+        "entangled_born_machine": {
+          "shape": [
+            4000,
+            38
+          ],
+          "fit_sample_seconds": 0.41,
+          "marginal_rmse": 0.0006326136261573885,
+          "mean_default_rate": 0.002111842105263158,
+          "n_unique_scenarios": 53,
+          "corr_rmse": 0.43856411668045475,
+          "degenerate": false
+        }
+      }
+    },
+    "synthetic_16": {
+      "kind": "synthetic",
+      "n_institutions": 16,
+      "node_names": [
+        "Global Bank A",
+        "Global Bank B",
+        "Regional Bank",
+        "Mortgage Lender",
+        "Life Insurer",
+        "Reinsurer",
+        "Pension Fund",
+        "Credit Fund",
+        "Real Estate Fund",
+        "Industrial Corporate",
+        "Energy Corporate",
+        "Retail Corporate",
+        "Sovereign A",
+        "Sovereign B",
+        "Central Counterparty",
+        "Payments Utility"
+      ],
+      "marginals_mean": 0.025995866928254723,
+      "generators": {
+        "bernoulli": {
+          "shape": [
+            4000,
+            16
+          ],
+          "fit_sample_seconds": 0.0,
+          "marginal_rmse": 0.002368869422939838,
+          "mean_default_rate": 0.02540625,
+          "n_unique_scenarios": 122,
+          "corr_rmse": 0.19247607671412983,
+          "degenerate": false
+        },
+        "gaussian_copula": {
+          "shape": [
+            4000,
+            16
+          ],
+          "fit_sample_seconds": 0.06,
+          "marginal_rmse": 0.0030662549019893222,
+          "mean_default_rate": 0.024781249999999998,
+          "n_unique_scenarios": 176,
+          "corr_rmse": 0.0626639935705719,
+          "degenerate": false
+        },
+        "student_t_copula": {
+          "shape": [
+            4000,
+            16
+          ],
+          "fit_sample_seconds": 3.96,
+          "marginal_rmse": 0.002111160411327338,
+          "mean_default_rate": 0.024484375,
+          "n_unique_scenarios": 195,
+          "corr_rmse": 0.04798423846096638,
+          "degenerate": false
+        },
+        "entangled_born_machine": {
+          "shape": [
+            4000,
+            16
+          ],
+          "fit_sample_seconds": 0.51,
+          "marginal_rmse": 0.02178975788255229,
+          "mean_default_rate": 0.033828125,
+          "n_unique_scenarios": 271,
+          "corr_rmse": 0.11819369361000172,
+          "degenerate": false
+        }
+      }
+    },
+    "synthetic_54": {
+      "kind": "synthetic",
+      "n_institutions": 54,
+      "node_names": [
+        "Global Bank A",
+        "Global Bank B",
+        "Continental Bank",
+        "Regional Bank",
+        "Community Bank",
+        "Mortgage Lender",
+        "Trade Finance Bank",
+        "Investment Bank",
+        "Merchant Bank",
+        "Universal Bank",
+        "Savings Bank",
+        "Commercial Bank",
+        "Private Bank",
+        "Custody Bank",
+        "Cooperative Bank",
+        "Digital Bank",
+        "Pension Fund",
+        "Credit Fund",
+        "Real Estate Fund",
+        "Money Market Fund",
+        "Hedge Fund",
+        "Sovereign Wealth Fund",
+        "Mutual Fund",
+        "Asset Manager",
+        "Private Equity Fund",
+        "Infrastructure Fund",
+        "Bond Fund",
+        "Equity Fund",
+        "Industrial Corporate",
+        "Energy Corporate",
+        "Retail Corporate",
+        "Transport Corporate",
+        "Telecom Corporate",
+        "Utility Corporate",
+        "Healthcare Corporate",
+        "Materials Corporate",
+        "Consumer Goods Corporate",
+        "Technology Corporate",
+        "Construction Corporate",
+        "Aerospace Corporate",
+        "Life Insurer",
+        "Reinsurer",
+        "Health Insurer",
+        "Property Insurer",
+        "Casualty Insurer",
+        "Credit Insurer",
+        "Title Insurer",
+        "Sovereign A",
+        "Sovereign B",
+        "Sovereign C",
+        "Sovereign D",
+        "Central Counterparty",
+        "Payments Utility",
+        "Securities Depository"
+      ],
+      "marginals_mean": 0.012170370370370373,
+      "generators": {
+        "bernoulli": {
+          "shape": [
+            4000,
+            54
+          ],
+          "fit_sample_seconds": 0.0,
+          "marginal_rmse": 0.0013196169477878378,
+          "mean_default_rate": 0.011999999999999999,
+          "n_unique_scenarios": 313,
+          "corr_rmse": 0.020914191448296073,
+          "degenerate": false
+        },
+        "gaussian_copula": {
+          "shape": [
+            4000,
+            54
+          ],
+          "fit_sample_seconds": 0.82,
+          "marginal_rmse": 0.0018608291660400175,
+          "mean_default_rate": 0.012407407407407407,
+          "n_unique_scenarios": 367,
+          "corr_rmse": 0.03176753134435303,
+          "degenerate": false
+        },
+        "student_t_copula": {
+          "shape": [
+            4000,
+            54
+          ],
+          "fit_sample_seconds": 56.59,
+          "marginal_rmse": 0.001813708090359923,
+          "mean_default_rate": 0.01261111111111111,
+          "n_unique_scenarios": 400,
+          "corr_rmse": 0.1005041548982943,
+          "degenerate": false
+        },
+        "entangled_born_machine": {
+          "shape": [
+            4000,
+            54
+          ],
+          "fit_sample_seconds": 0.0,
+          "marginal_rmse": 0.0015610863975900695,
+          "mean_default_rate": 0.011819444444444445,
+          "n_unique_scenarios": 317,
+          "corr_rmse": 0.01611964525281019,
+          "degenerate": false
+        }
+      }
+    }
+  }
+}
