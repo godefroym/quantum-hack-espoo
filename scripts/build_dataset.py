@@ -5,7 +5,7 @@ this samples correlated binary default scenarios from every generator and writes
 them side-by-side, so the files can be used to train/benchmark generators or to
 compare classical vs quantum samplers on a common footing.
 
-Layout (under --out-dir, default outputs/dataset/):
+Layout (under --out-dir, default data/scenario_dataset/):
 
     <source>/
         spec.json                      # the SystemSpec (marginals, correlation, ...)
@@ -94,7 +94,7 @@ def main() -> None:
     ap.add_argument("--seed", type=int, default=12345)
     ap.add_argument("--sources", nargs="*", default=list(SOURCES), choices=list(SOURCES))
     ap.add_argument("--generators", nargs="*", default=list(GENERATORS), choices=list(GENERATORS))
-    ap.add_argument("--out-dir", type=Path, default=Path("outputs/dataset"))
+    ap.add_argument("--out-dir", type=Path, default=Path("data/scenario_dataset"))
     args = ap.parse_args()
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
