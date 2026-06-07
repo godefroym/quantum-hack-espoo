@@ -1,0 +1,382 @@
+[
+  {
+    "qubit": 0,
+    "ticker": "JPM",
+    "name": "JPMorgan Chase",
+    "node_type": "bank",
+    "business_type": "universal",
+    "region": "US",
+    "cluster": 0,
+    "bloc": "A:US/Canada banks"
+  },
+  {
+    "qubit": 1,
+    "ticker": "BAC",
+    "name": "Bank of America",
+    "node_type": "bank",
+    "business_type": "universal",
+    "region": "US",
+    "cluster": 0,
+    "bloc": "A:US/Canada banks"
+  },
+  {
+    "qubit": 2,
+    "ticker": "C",
+    "name": "Citigroup",
+    "node_type": "bank",
+    "business_type": "universal",
+    "region": "US",
+    "cluster": 0,
+    "bloc": "A:US/Canada banks"
+  },
+  {
+    "qubit": 3,
+    "ticker": "WFC",
+    "name": "Wells Fargo",
+    "node_type": "bank",
+    "business_type": "universal",
+    "region": "US",
+    "cluster": 0,
+    "bloc": "A:US/Canada banks"
+  },
+  {
+    "qubit": 4,
+    "ticker": "GS",
+    "name": "Goldman Sachs",
+    "node_type": "bank",
+    "business_type": "investment",
+    "region": "US",
+    "cluster": 0,
+    "bloc": "A:US/Canada banks"
+  },
+  {
+    "qubit": 5,
+    "ticker": "MS",
+    "name": "Morgan Stanley",
+    "node_type": "bank",
+    "business_type": "investment",
+    "region": "US",
+    "cluster": 0,
+    "bloc": "A:US/Canada banks"
+  },
+  {
+    "qubit": 6,
+    "ticker": "USB",
+    "name": "U.S. Bancorp",
+    "node_type": "bank",
+    "business_type": "regional",
+    "region": "US",
+    "cluster": 0,
+    "bloc": "A:US/Canada banks"
+  },
+  {
+    "qubit": 7,
+    "ticker": "PNC",
+    "name": "PNC Financial",
+    "node_type": "bank",
+    "business_type": "regional",
+    "region": "US",
+    "cluster": 0,
+    "bloc": "A:US/Canada banks"
+  },
+  {
+    "qubit": 8,
+    "ticker": "TFC",
+    "name": "Truist Financial",
+    "node_type": "bank",
+    "business_type": "regional",
+    "region": "US",
+    "cluster": 0,
+    "bloc": "A:US/Canada banks"
+  },
+  {
+    "qubit": 9,
+    "ticker": "BK",
+    "name": "Bank of New York Mellon",
+    "node_type": "bank",
+    "business_type": "custodian",
+    "region": "US",
+    "cluster": 0,
+    "bloc": "A:US/Canada banks"
+  },
+  {
+    "qubit": 10,
+    "ticker": "STT",
+    "name": "State Street",
+    "node_type": "bank",
+    "business_type": "custodian",
+    "region": "US",
+    "cluster": 0,
+    "bloc": "A:US/Canada banks"
+  },
+  {
+    "qubit": 11,
+    "ticker": "HSBC",
+    "name": "HSBC Holdings",
+    "node_type": "bank",
+    "business_type": "universal",
+    "region": "UK",
+    "cluster": 1,
+    "bloc": "B:Europe/UK+LatAm"
+  },
+  {
+    "qubit": 12,
+    "ticker": "BCS",
+    "name": "Barclays",
+    "node_type": "bank",
+    "business_type": "universal",
+    "region": "UK",
+    "cluster": 1,
+    "bloc": "B:Europe/UK+LatAm"
+  },
+  {
+    "qubit": 13,
+    "ticker": "LYG",
+    "name": "Lloyds Banking Group",
+    "node_type": "bank",
+    "business_type": "regional",
+    "region": "UK",
+    "cluster": 1,
+    "bloc": "B:Europe/UK+LatAm"
+  },
+  {
+    "qubit": 14,
+    "ticker": "DB",
+    "name": "Deutsche Bank",
+    "node_type": "bank",
+    "business_type": "universal",
+    "region": "EU",
+    "cluster": 1,
+    "bloc": "B:Europe/UK+LatAm"
+  },
+  {
+    "qubit": 15,
+    "ticker": "SAN",
+    "name": "Banco Santander",
+    "node_type": "bank",
+    "business_type": "universal",
+    "region": "EU",
+    "cluster": 1,
+    "bloc": "B:Europe/UK+LatAm"
+  },
+  {
+    "qubit": 16,
+    "ticker": "BBVA",
+    "name": "Banco Bilbao Vizcaya Argentaria",
+    "node_type": "bank",
+    "business_type": "universal",
+    "region": "EU",
+    "cluster": 1,
+    "bloc": "B:Europe/UK+LatAm"
+  },
+  {
+    "qubit": 17,
+    "ticker": "ING",
+    "name": "ING Groep",
+    "node_type": "bank",
+    "business_type": "universal",
+    "region": "EU",
+    "cluster": 1,
+    "bloc": "B:Europe/UK+LatAm"
+  },
+  {
+    "qubit": 18,
+    "ticker": "UBS",
+    "name": "UBS Group",
+    "node_type": "bank",
+    "business_type": "investment",
+    "region": "EU",
+    "cluster": 1,
+    "bloc": "B:Europe/UK+LatAm"
+  },
+  {
+    "qubit": 19,
+    "ticker": "MUFG",
+    "name": "Mitsubishi UFJ Financial Group",
+    "node_type": "bank",
+    "business_type": "universal",
+    "region": "JP",
+    "cluster": 2,
+    "bloc": "C:Japan+corporates"
+  },
+  {
+    "qubit": 20,
+    "ticker": "SMFG",
+    "name": "Sumitomo Mitsui Financial Group",
+    "node_type": "bank",
+    "business_type": "universal",
+    "region": "JP",
+    "cluster": 2,
+    "bloc": "C:Japan+corporates"
+  },
+  {
+    "qubit": 21,
+    "ticker": "MFG",
+    "name": "Mizuho Financial Group",
+    "node_type": "bank",
+    "business_type": "universal",
+    "region": "JP",
+    "cluster": 2,
+    "bloc": "C:Japan+corporates"
+  },
+  {
+    "qubit": 22,
+    "ticker": "NMR",
+    "name": "Nomura Holdings",
+    "node_type": "bank",
+    "business_type": "investment",
+    "region": "JP",
+    "cluster": 2,
+    "bloc": "C:Japan+corporates"
+  },
+  {
+    "qubit": 23,
+    "ticker": "RY",
+    "name": "Royal Bank of Canada",
+    "node_type": "bank",
+    "business_type": "universal",
+    "region": "CA",
+    "cluster": 0,
+    "bloc": "A:US/Canada banks"
+  },
+  {
+    "qubit": 24,
+    "ticker": "TD",
+    "name": "Toronto-Dominion Bank",
+    "node_type": "bank",
+    "business_type": "universal",
+    "region": "CA",
+    "cluster": 0,
+    "bloc": "A:US/Canada banks"
+  },
+  {
+    "qubit": 25,
+    "ticker": "BNS",
+    "name": "Bank of Nova Scotia",
+    "node_type": "bank",
+    "business_type": "universal",
+    "region": "CA",
+    "cluster": 0,
+    "bloc": "A:US/Canada banks"
+  },
+  {
+    "qubit": 26,
+    "ticker": "ITUB",
+    "name": "Itau Unibanco",
+    "node_type": "bank",
+    "business_type": "universal",
+    "region": "LATAM",
+    "cluster": 1,
+    "bloc": "B:Europe/UK+LatAm"
+  },
+  {
+    "qubit": 27,
+    "ticker": "BBD",
+    "name": "Banco Bradesco",
+    "node_type": "bank",
+    "business_type": "universal",
+    "region": "LATAM",
+    "cluster": 1,
+    "bloc": "B:Europe/UK+LatAm"
+  },
+  {
+    "qubit": 28,
+    "ticker": "AAPL",
+    "name": "Apple",
+    "node_type": "corporate",
+    "business_type": "technology",
+    "region": "US",
+    "cluster": 2,
+    "bloc": "C:Japan+corporates"
+  },
+  {
+    "qubit": 29,
+    "ticker": "MSFT",
+    "name": "Microsoft",
+    "node_type": "corporate",
+    "business_type": "technology",
+    "region": "US",
+    "cluster": 2,
+    "bloc": "C:Japan+corporates"
+  },
+  {
+    "qubit": 30,
+    "ticker": "XOM",
+    "name": "ExxonMobil",
+    "node_type": "corporate",
+    "business_type": "energy",
+    "region": "US",
+    "cluster": 2,
+    "bloc": "C:Japan+corporates"
+  },
+  {
+    "qubit": 31,
+    "ticker": "WMT",
+    "name": "Walmart",
+    "node_type": "corporate",
+    "business_type": "retail",
+    "region": "US",
+    "cluster": 2,
+    "bloc": "C:Japan+corporates"
+  },
+  {
+    "qubit": 32,
+    "ticker": "BA",
+    "name": "Boeing",
+    "node_type": "corporate",
+    "business_type": "aerospace",
+    "region": "US",
+    "cluster": 1,
+    "bloc": "B:Europe/UK+LatAm"
+  },
+  {
+    "qubit": 33,
+    "ticker": "T",
+    "name": "AT&T",
+    "node_type": "corporate",
+    "business_type": "telecom",
+    "region": "US",
+    "cluster": 2,
+    "bloc": "C:Japan+corporates"
+  },
+  {
+    "qubit": 34,
+    "ticker": "TM",
+    "name": "Toyota Motor",
+    "node_type": "corporate",
+    "business_type": "automotive",
+    "region": "JP",
+    "cluster": 2,
+    "bloc": "C:Japan+corporates"
+  },
+  {
+    "qubit": 35,
+    "ticker": "VWAGY",
+    "name": "Volkswagen",
+    "node_type": "corporate",
+    "business_type": "automotive",
+    "region": "EU",
+    "cluster": 1,
+    "bloc": "B:Europe/UK+LatAm"
+  },
+  {
+    "qubit": 36,
+    "ticker": "SIEGY",
+    "name": "Siemens",
+    "node_type": "corporate",
+    "business_type": "industrial",
+    "region": "EU",
+    "cluster": 1,
+    "bloc": "B:Europe/UK+LatAm"
+  },
+  {
+    "qubit": 37,
+    "ticker": "PBR",
+    "name": "Petrobras",
+    "node_type": "corporate",
+    "business_type": "energy",
+    "region": "LATAM",
+    "cluster": 1,
+    "bloc": "B:Europe/UK+LatAm"
+  }
+]

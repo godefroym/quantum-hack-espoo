@@ -6,9 +6,8 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 
-outputs/
-outputs/scenarios/
-outputs/scenarios/*.csv
+outputs/*
+!outputs/real_cluster_mixture_stress_hw/
 *.egg-info/
 .DS_Store
 .env
