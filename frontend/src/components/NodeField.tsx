@@ -16,6 +16,8 @@ type Node = {
   alive: boolean
   /** 0..1 visibility, eased toward alive ? 1 : 0 */
   vis: number
+  /** 0..1 redness, rises fast on failure so the node flashes red before it goes */
+  red: number
 }
 
 type Cluster = {
@@ -33,16 +35,20 @@ const MIN_SEPARATION = 46 // px: nodes from different clusters repel within this
 const WALL_MARGIN = 70 // px: nodes get pushed back inside this far from an edge
 const WALL_FORCE = 0.35 // strength of the push away from the walls
 
-// ambient contagion cascade
-const P_SPREAD = 0.5 // chance a failure propagates across each intra-cluster link
-const STEP_MS = 240 // gap between successive failures (one node disappears at a time)
-const HOLD_MS = 1300 // pause once the cascade has run its course
-const REGEN_MS = 1300 // time given for failed nodes to fade back in
-const GAP_MS = 1100 // pause before the next cascade is seeded
-const DIE_EASE = 0.2 // how fast a failed node disappears
+// contagion cascade, triggered when the cursor reaches a cluster
+const TRIGGER_RADIUS = 125 // px: cursor within this of a cluster centre seeds it
+// probability a node collapses by hop distance from the seed; the cascade stops
+// after the last ring listed
+const LEVEL_PROB = [1, 1, 0.5, 0.3, 0.9] // index = hop depth (0 = seed)
+const STEP_MS = 120 // gap between successive failures (one node at a time)
+const HOLD_MS = 1100 // pause once the cascade has run its course
+const COOLDOWN_MS = 1500 // extra pause (after regen) before a cluster can re-trigger
+const DIE_EASE = 0.12 // how fast a failed node fades out, after it has reddened
 const REVIVE_EASE = 0.05 // how gently a node fades back in
+const RED_RISE = 0.25 // how fast a failing node turns red
+const RED_FADE = 0.06 // how fast red clears on revival
 
-type Phase = "idle" | "cascading" | "hold" | "regen"
+type SchedEvent = { t: number; node: number; revive: boolean }
 
 export function NodeField() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -96,6 +102,7 @@ export function NodeField() {
             glow: 0,
             alive: true,
             vis: 1,
+            red: 0,
           })
         }
       }
@@ -109,84 +116,105 @@ export function NodeField() {
       canvas.height = Math.round(height * dpr)
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       build()
+      busyUntil.length = 0
+      for (let c = 0; c < CLUSTER_COUNT; c++) busyUntil.push(0)
+      scheduled.length = 0
     }
 
-    // build one stochastic percolation cascade: a seed fails, then the failure
-    // spreads to same-cluster neighbours with probability P_SPREAD. Because the
-    // spread is probabilistic it usually dies out, so only part of the cluster
-    // fails. Returns the failures in the order they should disappear.
-    const generateCascade = (): number[] => {
-      const aliveIdx: number[] = []
+    const scheduled: SchedEvent[] = []
+    const busyUntil: number[] = []
+
+    // build one cascade within a cluster, seeded at the node nearest the cursor.
+    // It spreads outward hop by hop; the chance a node in the next ring collapses
+    // follows LEVEL_PROB (first ring certain, then dropping to zero), so it dies
+    // out and only part of the cluster fails. Returns failures in the order they
+    // should disappear (breadth-first from the seed).
+    const cascadeOrder = (c: number, mx: number, my: number): number[] => {
+      const alive: number[] = []
       for (let i = 0; i < nodes.length; i++) {
-        if (nodes[i].alive && nodes[i].vis > 0.6) aliveIdx.push(i)
+        if (nodes[i].cluster === c && nodes[i].alive && nodes[i].vis > 0.6)
+          alive.push(i)
       }
-      if (!aliveIdx.length) return []
-      const seed = aliveIdx[Math.floor(Math.random() * aliveIdx.length)]
+      if (!alive.length) return []
+
+      // seed = alive node in this cluster closest to the cursor
+      let seed = alive[0]
+      let best = Infinity
+      for (const i of alive) {
+        const dx = nodes[i].x - mx
+        const dy = nodes[i].y - my
+        const d = dx * dx + dy * dy
+        if (d < best) {
+          best = d
+          seed = i
+        }
+      }
+
       const failed = new Set<number>([seed])
       const order = [seed]
-      const queue = [seed]
-      while (queue.length) {
-        const u = queue.shift()!
-        const nu = nodes[u]
-        for (let v = 0; v < nodes.length; v++) {
-          if (v === u) continue
-          const nv = nodes[v]
-          if (nv.cluster !== nu.cluster || !nv.alive || failed.has(v)) continue
-          const dx = nu.x - nv.x
-          const dy = nu.y - nv.y
-          if (dx * dx + dy * dy > LINK_DIST * LINK_DIST) continue
-          if (Math.random() < P_SPREAD) {
-            failed.add(v)
-            order.push(v)
-            queue.push(v)
+      let frontier = [seed]
+      for (let depth = 1; depth < LEVEL_PROB.length; depth++) {
+        const p = LEVEL_PROB[depth]
+        if (p <= 0) break
+        // unique alive neighbours of the current ring, not yet failed
+        const candidates = new Set<number>()
+        for (const u of frontier) {
+          const nu = nodes[u]
+          for (const v of alive) {
+            if (failed.has(v) || candidates.has(v)) continue
+            const dx = nu.x - nodes[v].x
+            const dy = nu.y - nodes[v].y
+            if (dx * dx + dy * dy <= LINK_DIST * LINK_DIST) candidates.add(v)
           }
         }
+        const next: number[] = []
+        for (const v of candidates) {
+          if (Math.random() < p) {
+            failed.add(v)
+            order.push(v)
+            next.push(v)
+          }
+        }
+        if (!next.length) break
+        frontier = next
       }
       return order
     }
 
-    let phase: Phase = "idle"
-    let order: number[] = []
-    let idx = 0
-    let tNext = performance.now() + 700
-
-    const stepCascade = (now: number) => {
-      if (phase === "idle") {
-        if (now < tNext) return
-        order = generateCascade()
-        if (order.length === 0) {
-          tNext = now + GAP_MS
-        } else {
-          phase = "cascading"
-          idx = 0
-          tNext = now // first failure right away
-        }
-      } else if (phase === "cascading") {
-        if (now < tNext) return
-        if (idx < order.length) {
-          nodes[order[idx]].alive = false
-          idx++
-          tNext = now + STEP_MS
-        }
-        if (idx >= order.length) {
-          phase = "hold"
-          tNext = now + HOLD_MS
-        }
-      } else if (phase === "hold") {
-        if (now < tNext) return
-        for (const i of order) nodes[i].alive = true // start regenerating
-        phase = "regen"
-        tNext = now + REGEN_MS
-      } else if (phase === "regen") {
-        if (now < tNext) return
-        phase = "idle"
-        tNext = now + GAP_MS
-      }
+    const triggerCluster = (c: number, now: number) => {
+      const order = cascadeOrder(c, mouse.x, mouse.y)
+      if (!order.length) return
+      order.forEach((node, k) =>
+        scheduled.push({ t: now + k * STEP_MS, node, revive: false })
+      )
+      const reviveT = now + order.length * STEP_MS + HOLD_MS
+      for (const node of order) scheduled.push({ t: reviveT, node, revive: true })
+      busyUntil[c] = reviveT + COOLDOWN_MS
     }
 
     const draw = () => {
       const now = performance.now()
-      stepCascade(now)
+
+      // run due schedule events
+      for (let i = scheduled.length - 1; i >= 0; i--) {
+        if (scheduled[i].t <= now) {
+          nodes[scheduled[i].node].alive = scheduled[i].revive
+          scheduled.splice(i, 1)
+        }
+      }
+
+      // seed a cascade the instant the cursor reaches a fresh cluster
+      if (mouse.active) {
+        for (let c = 0; c < CLUSTER_COUNT; c++) {
+          if (now < busyUntil[c]) continue
+          const dx = clusters[c].x - mouse.x
+          const dy = clusters[c].y - mouse.y
+          if (dx * dx + dy * dy < TRIGGER_RADIUS * TRIGGER_RADIUS) {
+            triggerCluster(c, now)
+          }
+        }
+      }
+
       ctx.clearRect(0, 0, width, height)
 
       // drift cluster centres, gently bouncing off the edges
@@ -242,10 +270,17 @@ export function NodeField() {
         }
       }
 
-      // pass 3: ease visibility, damp, integrate
+      // pass 3: ease redness + visibility, damp, integrate. A failing node
+      // reddens first (at full size) and only starts shrinking once it is red,
+      // so it visibly glows red before it disappears.
       for (const n of nodes) {
-        const target = n.alive ? 1 : 0
-        n.vis += (target - n.vis) * (n.alive ? REVIVE_EASE : DIE_EASE)
+        if (n.alive) {
+          n.red += (0 - n.red) * RED_FADE
+          n.vis += (1 - n.vis) * REVIVE_EASE
+        } else {
+          n.red += (1 - n.red) * RED_RISE
+          if (n.red > 0.8) n.vis += (0 - n.vis) * DIE_EASE
+        }
         n.vx = n.vx * 0.92 + rand(-0.01, 0.01)
         n.vy = n.vy * 0.92 + rand(-0.01, 0.01)
         n.x += n.vx
@@ -280,9 +315,19 @@ export function NodeField() {
         if (n.vis <= 0.02) continue
         const radius = n.r * n.vis
         const baseAlpha = (0.45 + n.glow * 0.5) * n.vis
-        const dying = n.alive ? 0 : 1 - n.vis // red flash as it fails
 
-        if (n.glow > 0.02 && dying < 0.3) {
+        if (n.red > 0.12) {
+          // red glow while the node is failing
+          const rg = n.red * n.vis
+          const g = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.r * 7)
+          g.addColorStop(0, `rgba(244, 63, 94, ${rg * 0.55})`)
+          g.addColorStop(1, "rgba(244, 63, 94, 0)")
+          ctx.fillStyle = g
+          ctx.beginPath()
+          ctx.arc(n.x, n.y, n.r * 7, 0, Math.PI * 2)
+          ctx.fill()
+        } else if (n.glow > 0.02) {
+          // cyan glow when lit by the cursor
           const halo = n.glow * n.vis
           const g = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.r * 6)
           g.addColorStop(0, `rgba(103, 232, 249, ${halo * 0.35})`)
@@ -298,9 +343,9 @@ export function NodeField() {
         let cr = lerp(148, 103, lit)
         let cg = lerp(163, 232, lit)
         let cb = lerp(184, 249, lit)
-        cr = lerp(cr, 244, dying)
-        cg = lerp(cg, 63, dying)
-        cb = lerp(cb, 94, dying)
+        cr = lerp(cr, 244, n.red)
+        cg = lerp(cg, 63, n.red)
+        cb = lerp(cb, 94, n.red)
         ctx.fillStyle = `rgba(${Math.round(cr)}, ${Math.round(cg)}, ${Math.round(
           cb
         )}, ${baseAlpha})`

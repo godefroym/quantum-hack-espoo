@@ -28,7 +28,7 @@ const generators = [
 ]
 
 const matched = [
-  "Same real 28-bank G-SIB exposure network",
+  "Same real exposure network (28 banks + 10 corporates)",
   "Same marginal default probabilities",
   "Same pairwise dependency targets",
   "Same deterministic cascade simulator",

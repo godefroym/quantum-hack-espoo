@@ -14,7 +14,7 @@ const tools = [
   {
     icon: Spline,
     title: "Copulas",
-    body: "Gaussian and Student-t models impose a dependency structure across defaults. Strong, standard baselines, yet they may not reach the same crisis tail.",
+    body: "Gaussian and Student-t models impose a dependency structure across defaults. Strong, standard baselines that capture pairwise dependence, but not higher-order joint structure.",
   },
 ]
 
@@ -32,11 +32,11 @@ export function ProblemSection() {
           Institutions fail. How does this cascade to other institutions?
         </h2>
         <p className="mt-6 max-w-3xl text-lg leading-relaxed text-muted-foreground">
-          Banks, insurers, funds, and corporates are linked by directed
-          financial exposures, so one institution&rsquo;s failure becomes
-          another&rsquo;s loss. Stress testing asks which initial defaults set
-          off the most severe downstream cascades. Today, three families of
-          tools try to answer that.
+          Banks and corporates are linked by directed financial exposures, so
+          one institution&rsquo;s failure becomes another&rsquo;s loss. Stress
+          testing asks which initial defaults set off the most severe downstream
+          cascades. Three families of tools are used to generate those
+          scenarios.
         </p>
 
         <div className="mt-14 grid gap-6 md:grid-cols-3">

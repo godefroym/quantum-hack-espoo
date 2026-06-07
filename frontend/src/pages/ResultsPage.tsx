@@ -1,17 +1,9 @@
 import { Link } from "react-router-dom"
 import { Atom, ArrowLeft, Cpu, CheckCircle2, Loader2 } from "lucide-react"
 import { useHardware, type HardwareData } from "@/lib/results"
-import { MarginalsBars } from "@/components/results/MarginalsBars"
-import { ParityScatter } from "@/components/results/ParityScatter"
-import { MarginalsLines } from "@/components/results/MarginalsLines"
-import { CorrelationHeatmap } from "@/components/results/CorrelationHeatmap"
-import { DefaultCountChart } from "@/components/results/DefaultCountChart"
-import { TopScenarios } from "@/components/results/TopScenarios"
 import { TopPosteriors } from "@/components/results/TopPosteriors"
-import { ContagionGraph } from "@/components/results/ContagionGraph"
 import { InfluenceRanking } from "@/components/results/InfluenceRanking"
 import { SurvivalTail } from "@/components/results/SurvivalTail"
-import { TailExplorer } from "@/components/results/TailExplorer"
 
 export function ResultsPage() {
   const { data, loading, error } = useHardware()
@@ -89,19 +81,88 @@ function Results({ data }: { data: HardwareData }) {
         </div>
       </section>
 
-      {/* featured: systemic influence map */}
+      {/* featured: systemic failure network (embedded prototype) */}
       <section className="mt-12">
         <h2 className="text-2xl font-bold tracking-tight">
-          Systemic influence map
+          Systemic failure network
         </h2>
         <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-          Every institution at a glance. Each node is sized by how much its
-          failure raises everyone else's default probability; an edge links two
-          institutions when one failing makes the other likely to fail; the
-          most correlated pairs are colour coded. Hover a node to isolate it.
+          The co-failure association graph from the 100k hardware shots, with each
+          institution placed at its headquarters on the world map. Node size is
+          standalone failure probability, glow is eigenvector centrality, colour
+          is the detected community, and edges show the sign and strength of the
+          co-failure correlation. Use the threshold slider and filters; scroll to
+          zoom.
         </p>
-        <div className="mt-5">
-          <ContagionGraph data={data} />
+        <div className="mt-5 overflow-hidden rounded-xl border border-border bg-[#0b0f1a]">
+          <iframe
+            src="/proto/index.html"
+            title="Systemic failure network"
+            className="block h-[78vh] min-h-[560px] w-full"
+            loading="lazy"
+          />
+        </div>
+
+        {/* explanation of the simulation */}
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <div className="rounded-xl border border-border bg-card/40 p-5 text-sm leading-relaxed text-muted-foreground">
+            <div className="mb-2 font-semibold text-foreground">
+              What the simulation is
+            </div>
+            The entangled Born-machine circuit was measured{" "}
+            {data.shots.toLocaleString()} times on {data.backend}. Each shot is a{" "}
+            {data.n_qubits}-bit string; bit i set means institution i defaulted in
+            that scenario. Together the shots are a sampled probability
+            distribution over which institutions fail together. From them we
+            measure pairwise co-failure correlations (φ), conditional
+            probabilities, eigenvector centrality, communities (Louvain), and
+            frequent co-failure baskets (Apriori). The page is built from these
+            reduced statistics, not the raw shots.
+          </div>
+          <div className="rounded-xl border border-border bg-card/40 p-5 text-sm leading-relaxed text-muted-foreground">
+            <div className="mb-2 font-semibold text-foreground">
+              How to read it
+            </div>
+            <ul className="space-y-1.5">
+              <li>
+                <span className="text-foreground">Position</span>: each node is at
+                its company headquarters on the world map.
+              </li>
+              <li>
+                <span className="text-foreground">Size</span>: P(this institution
+                fails). <span className="text-foreground">Glow</span>: systemic
+                centrality.
+              </li>
+              <li>
+                <span className="text-foreground">Colour</span>: detected
+                community. <span className="text-foreground">Edges</span>: sign
+                and strength of the co-failure correlation.
+              </li>
+              <li>
+                <span className="text-foreground">Threshold slider</span>: hide
+                weaker links; filter to contagion or hedges. Drag nodes, scroll
+                to zoom.
+              </li>
+            </ul>
+            <p className="mt-2">
+              A graph is a pairwise view of the full joint distribution; the
+              higher-order structure it drops is listed separately as co-failure
+              baskets.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* influence ranking, directly below the network */}
+      <section className="mt-4">
+        <div className="rounded-xl border border-border bg-card/40 p-5">
+          <h3 className="text-lg font-semibold">Systemic influence ranking</h3>
+          <p className="mb-4 mt-1 text-sm text-muted-foreground">
+            Institutions ordered by how much their failure raises everyone
+            else's default probability, the same metric that sizes the nodes
+            above.
+          </p>
+          <InfluenceRanking data={data} />
         </div>
       </section>
 
@@ -153,62 +214,36 @@ function Results({ data }: { data: HardwareData }) {
         </div>
       </section>
 
-      {/* presentation chooser note */}
-      <div className="mt-12 rounded-lg border border-indigo-400/30 bg-indigo-500/5 px-4 py-3 text-sm text-muted-foreground">
-        The same hardware run is shown several ways below, each labelled an{" "}
-        <span className="font-medium text-foreground">Option</span>. Pick the
-        ones to keep.
-      </div>
-
-      <Section title="Marginals fidelity" subtitle="Per-institution default probability: target vs exact simulator vs hardware.">
-        <OptionCard letter="A" name="Grouped bars" caption="Three bars per institution; easy direct comparison, but dense at 20 institutions.">
-          <MarginalsBars data={data} />
-        </OptionCard>
-        <OptionCard letter="B" name="Parity scatter" caption="Sampled vs target with a y=x line. Points on the diagonal mean the hardware matched the target. Compact and precise.">
-          <ParityScatter data={data} />
-        </OptionCard>
-        <OptionCard letter="C" name="Line overlay" caption="Three curves tracking each other across institutions; reads as 'the lines sit on top of one another.'">
-          <MarginalsLines data={data} />
-        </OptionCard>
-      </Section>
-
-      <Section title="Joint / correlation structure" subtitle="The entanglement-induced correlations between institutions, measured from the 100k shots.">
-        <OptionCard letter="D" name="Correlation heatmap" caption="20×20 pairwise default correlation. Off-diagonal colour shows the correlations between institutions induced by the entanglement.">
-          <CorrelationHeatmap data={data} />
-        </OptionCard>
-      </Section>
-
-      <Section title="Default-count distribution" subtitle="How many institutions jointly default per scenario, across all shots.">
-        <OptionCard letter="E" name="Distribution (with replay)" caption="The correlated loss distribution the QPU produced. 'Replay sampling' animates it filling in shot-by-shot.">
-          <DefaultCountChart data={data} />
-        </OptionCard>
-      </Section>
-
-      <Section title="Sampled scenarios" subtitle="The most frequent joint-default bitstrings the hardware returned.">
-        <OptionCard letter="F" name="Top scenarios grid" caption="Each row is a sampled scenario; lit cells are institutions defaulting together.">
-          <TopScenarios data={data} />
-        </OptionCard>
-      </Section>
-
-      <Section title="Conditional failure posteriors" subtitle="Mined from the joint distribution: when a collection of institutions fails, which other institution is most likely to fail with them?">
-        <OptionCard letter="G" name="Highest P(A | B) rules" caption="The strongest contagion conditionals: P(A fails | collection B fails). Toggle the ranking between raw posterior and lift over the unconditional baseline.">
+      <Section title="Conditional failure posteriors" subtitle="When a collection of institutions fails, which other institution is most likely to fail with them? Mined from the joint distribution: P(A fails | collection B fails), with the lift over A's unconditional rate.">
+        <div className="rounded-xl border border-border bg-card/40 p-5">
           <TopPosteriors data={data} limit={5} />
-        </OptionCard>
+        </div>
       </Section>
 
-      <Section title="Systemic influence ranking" subtitle="A compact companion to the influence map: institutions ordered by how much their failure spreads to the rest of the system.">
-        <OptionCard letter="H" name="Influence ranking bars" caption="The same systemic-impact metric that sizes the map nodes, as a ranked bar list.">
-          <InfluenceRanking data={data} />
-        </OptionCard>
-      </Section>
-
-      <Section title="Is the tail real, or sampling noise?" subtitle="Tail counts come from finite shots and are small, so a divergence only counts if the confidence intervals separate. Quantum is the hardware sample; the copulas are matched to its exact marginals and pairwise dependencies.">
-        <OptionCard letter="I" name="Survival function with confidence bands" caption="P(at least s default) on a log axis with 95% Wilson bands. The quantum and Gaussian-copula bands overlap; the Student-t band separates above, a real difference.">
+      <Section title="Is the tail real, or sampling noise?" subtitle="The deep tail is where the rare, severe collapses live, and where finite-shot sampling error is largest. The survival function with confidence bands is the check.">
+        <div className="rounded-xl border border-border bg-card/40 p-5">
+          <div className="mb-4 max-w-3xl space-y-2 text-sm leading-relaxed text-muted-foreground">
+            <p>
+              The survival function S(s) = P(at least s institutions default in a
+              scenario) is the upper tail of the loss distribution. Read left to
+              right, it shows how fast probability drains as scenarios get more
+              severe. The axis is logarithmic so the rare deep-tail events stay
+              visible. Quantum is the hardware sample; the copulas are matched to
+              its exact marginals and pairwise dependencies.
+            </p>
+            <p>
+              Each point is estimated from a finite number of shots, so it carries
+              sampling error. The shaded band is the 95% confidence interval for
+              that estimate. Two generators differ for real only where their bands
+              stop overlapping: overlapping bands mean the gap is within sampling
+              noise; separated bands mean the difference is not noise. Here the
+              quantum and Gaussian-copula bands overlap at every threshold (equal
+              within noise), while the Student-t band separates above them in the
+              deep tail (a genuine difference, not an artefact of too few shots).
+            </p>
+          </div>
           <SurvivalTail data={data} />
-        </OptionCard>
-        <OptionCard letter="J" name="Interactive severity-threshold explorer" caption="Drag the threshold into the tail. The survival readout shows each interval and whether quantum clears the copula's; the two networks light up the institutions in collapses of that size.">
-          <TailExplorer data={data} />
-        </OptionCard>
+        </div>
       </Section>
     </>
   )
@@ -229,31 +264,6 @@ function Section({
       <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{subtitle}</p>
       <div className="mt-5 grid gap-4">{children}</div>
     </section>
-  )
-}
-
-function OptionCard({
-  letter,
-  name,
-  caption,
-  children,
-}: {
-  letter: string
-  name: string
-  caption: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className="rounded-xl border border-border bg-card/40 p-5">
-      <div className="mb-1 flex items-center gap-2">
-        <span className="inline-flex size-6 items-center justify-center rounded-md bg-indigo-500/15 text-xs font-bold text-indigo-300">
-          {letter}
-        </span>
-        <span className="font-semibold">{name}</span>
-      </div>
-      <p className="mb-4 text-xs text-muted-foreground">{caption}</p>
-      {children}
-    </div>
   )
 }
 

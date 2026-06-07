@@ -131,12 +131,9 @@ export function SurvivalTail({ data }: { data: HardwareData }) {
         ))}
       </div>
       <p className="mt-3 text-xs text-muted-foreground">
-        Shaded bands are 95% Wilson intervals from{" "}
+        Bands are 95% Wilson intervals from{" "}
         {t.shots.quantum.toLocaleString()} hardware shots and{" "}
-        {t.shots.copula.toLocaleString()} copula samples. The quantum and
-        Gaussian-copula bands overlap throughout, so their tails are equal within
-        sampling error. The Student-t band separates above both in the deep tail,
-        a genuine difference rather than noise.
+        {t.shots.copula.toLocaleString()} copula samples.
       </p>
     </div>
   )

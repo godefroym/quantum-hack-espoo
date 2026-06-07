@@ -6,10 +6,10 @@ export function Footer() {
           Quantum Systemic Stress Scenario Discovery
         </p>
         <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          Classical baselines, the entangled QCBM generator, both contagion
-          channels, and the QAE calculation surface are implemented and
-          validated end-to-end. What remains is running the calculation on the
-          54-qubit machine, access incoming.
+          Classical baselines, the entangled generator, both contagion channels,
+          and the QAE estimator are implemented and validated. The generator has
+          run on 20-qubit quantum hardware; the calculation surface runs in exact
+          statevector simulation.
         </p>
         <p className="mt-2 text-xs text-muted-foreground/70">
           Built for the Espoo quantum hackathon.

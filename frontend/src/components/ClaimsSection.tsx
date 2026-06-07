@@ -1,17 +1,17 @@
 import { Check, X } from "lucide-react"
 
 const does = [
-  "Quantum advantage over the scenario distribution (estimation) and the search space (discovery).",
-  "An exact statevector QAE that agrees with the classical Monte-Carlo answer.",
-  "A quadratic oracle-query advantage that grows in the deep tail.",
-  "A hardware-ready construction: one qubit per institution + cascade-comparison ancillas.",
+  "An entangled generator that loads a correlated default distribution, run on real quantum hardware (20 qubits, 100k shots).",
+  "Hardware output matching the target distribution and the exact simulator within sampling error.",
+  "A quadratic oracle-query reduction for P(severe) / CVaR estimation, in exact statevector simulation.",
+  "A hardware-ready oracle: one qubit per institution plus cascade-comparison ancillas.",
 ]
 
 const doesNot = [
-  "No quantum speedup for a single cascade; the advantage is distributional.",
-  "The cascade is not quantum-simulated except as an oracle.",
-  "Reverse-stress-test optimization (QAOA) is heuristic, not proven optimal.",
-  "No quantum-linear-algebra (HHL) advantage is claimed, and no wall-clock speedup.",
+  "No quantum speedup for a single cascade; the benefit is over the distribution and the search space.",
+  "The cascade is classical; it enters the quantum circuit only as an oracle.",
+  "No wall-clock speedup is claimed; the advantage is in oracle-query count.",
+  "No quantum-linear-algebra (HHL) speedup; reverse-stress-test optimisation (QAOA) is heuristic.",
 ]
 
 export function ClaimsSection() {
@@ -29,8 +29,7 @@ export function ClaimsSection() {
         </h2>
         <p className="mt-6 max-w-3xl text-lg leading-relaxed text-muted-foreground">
           The advantage is in oracle-query count, verified against the classical
-          answer. We are precise about the boundary so the result stands up to
-          scrutiny.
+          answer. The precise boundary is below.
         </p>
 
         <div className="mt-12 grid gap-6 md:grid-cols-2">

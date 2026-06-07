@@ -13,10 +13,10 @@ export function QuantumAdvantageSection() {
 
       <div className="mx-auto w-full max-w-5xl">
         <span className="text-sm font-semibold uppercase tracking-widest text-fuchsia-400">
-          Where the Quantum Advantage Is
+          The two quantum surfaces
         </span>
         <h2 className="mt-4 max-w-3xl text-4xl font-bold tracking-tight sm:text-5xl">
-          One qubit per institution. Entanglement that&rsquo;s load-bearing.
+          One qubit per institution.
         </h2>
         <p className="mt-6 max-w-3xl text-lg leading-relaxed text-muted-foreground">
           Each qubit is one entity:{" "}
@@ -43,7 +43,7 @@ export function QuantumAdvantageSection() {
               <code className="rounded bg-muted px-1 py-0.5">
                 |&langle;x|U(&theta;)|0&rangle;|&sup2;
               </code>
-              . Its entangling layers encode a correlated, classically-hard
+              . Its entangling layers encode a correlated, non-factorized
               distribution, and the <em>same</em> circuit doubles as the
               state-loader for the calculation step.
             </p>
@@ -74,16 +74,17 @@ export function QuantumAdvantageSection() {
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
               Estimates{" "}
               <code className="rounded bg-muted px-1 py-0.5">P(severe)</code>{" "}
-              and CVaR with a quadratic speedup that <em>grows in the deep
-              tail</em>:{" "}
+              and CVaR using{" "}
               <code className="rounded bg-muted px-1 py-0.5">
                 O(1/(&epsilon;&middot;&radic;a))
               </code>{" "}
-              queries vs{" "}
+              oracle queries vs{" "}
               <code className="rounded bg-muted px-1 py-0.5">
                 O(1/(&epsilon;&sup2;&middot;a))
               </code>{" "}
-              for Monte Carlo.
+              for Monte Carlo: a quadratic reduction in queries, larger for
+              rarer events. Implemented as an exact statevector simulation; the
+              advantage is in query count, not wall-clock time.
             </p>
           </div>
 
@@ -97,8 +98,7 @@ export function QuantumAdvantageSection() {
               <code className="rounded bg-muted px-1 py-0.5">O(1/&radic;a)</code>{" "}
               iterations versus{" "}
               <code className="rounded bg-muted px-1 py-0.5">O(1/a)</code>{" "}
-              classical draws, the basis for quantum worst-case scenario
-              search.
+              classical draws, for worst-case scenario search.
             </p>
           </div>
         </div>

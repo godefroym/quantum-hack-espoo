@@ -34,13 +34,100 @@ def load_institutions(n: int) -> list[dict]:
     if ROSTER.exists():
         with ROSTER.open(newline="", encoding="utf-8") as f:
             rows = list(csv.DictReader(f))
+    region_name = {
+        "US": "North America",
+        "CA": "North America",
+        "UK": "UK & Europe",
+        "EU": "UK & Europe",
+        "JP": "Japan",
+        "LatAm": "Energy & LatAm",
+    }
     out: list[dict] = []
     for i in range(n):
         if i < len(rows):
-            out.append({"ticker": rows[i]["ticker"], "name": rows[i]["name"]})
+            region = rows[i].get("region", "")
+            out.append(
+                {
+                    "ticker": rows[i]["ticker"],
+                    "name": rows[i]["name"],
+                    "region": region,
+                    "regionName": region_name.get(region, region or "Other"),
+                }
+            )
         else:
-            out.append({"ticker": f"Q{i + 1}", "name": f"Institution {i + 1}"})
+            out.append(
+                {
+                    "ticker": f"Q{i + 1}",
+                    "name": f"Institution {i + 1}",
+                    "region": "",
+                    "regionName": "Other",
+                }
+            )
     return out
+
+
+# headquarters coordinates [lat, lon] for the first 20 roster institutions
+HQ_COORDS: dict[str, tuple[float, float]] = {
+    "JPM": (40.755, -73.976),  # New York
+    "BAC": (35.227, -80.843),  # Charlotte
+    "C": (40.721, -74.009),  # New York
+    "WFC": (37.791, -122.402),  # San Francisco
+    "GS": (40.715, -74.013),  # New York
+    "MS": (40.764, -73.979),  # New York
+    "USB": (44.977, -93.271),  # Minneapolis
+    "PNC": (40.441, -79.994),  # Pittsburgh
+    "TFC": (35.224, -80.840),  # Charlotte
+    "BK": (40.711, -74.011),  # New York
+    "STT": (42.353, -71.055),  # Boston
+    "HSBC": (51.505, -0.019),  # London (Canary Wharf)
+    "BCS": (51.504, -0.017),  # London
+    "LYG": (51.513, -0.091),  # London
+    "DB": (50.114, 8.671),  # Frankfurt
+    "SAN": (40.404, -3.873),  # Boadilla del Monte, Madrid
+    "BBVA": (43.263, -2.935),  # Bilbao
+    "ING": (52.372, 4.896),  # Amsterdam
+    "UBS": (47.370, 8.541),  # Zurich
+    "MUFG": (35.680, 139.764),  # Tokyo
+}
+
+
+def write_prototype_shots(samples: np.ndarray, report: dict) -> None:
+    """Emit the raw hardware shots + node metadata for the embedded prototype.
+
+    The prototype reduces these to its own sufficient statistics. Each shot is a
+    bitmask (bit i set = institution i defaulted). Only consumed at build time.
+    """
+    proto_src = (
+        ROOT / "prototyping-for-quantum" / "prototyping-for-quantum" / "src"
+    )
+    if not proto_src.exists():
+        return
+    shots, n = samples.shape
+    masks = [int(sum(int(b) << i for i, b in enumerate(row))) for row in samples]
+    inst = load_institutions(n)
+    target = report.get("target_marginals", [0.0] * n)
+    nodes = []
+    for i in range(n):
+        ticker = inst[i]["ticker"]
+        coord = HQ_COORDS.get(ticker)
+        nodes.append(
+            {
+                "label": ticker,
+                "sector": inst[i].get("region") or "NA",
+                "sectorName": inst[i].get("regionName") or "Other",
+                "pd": float(target[i]) if i < len(target) else 0.0,
+                "lat": coord[0] if coord else None,
+                "lon": coord[1] if coord else None,
+            }
+        )
+    payload = {
+        "backend": report.get("backend", ""),
+        "jobId": report.get("job_id", ""),
+        "shots": masks,
+        "nodes": nodes,
+    }
+    (proto_src / "quantum-shots.json").write_text(json.dumps(payload))
+    print(f"  wrote {proto_src / 'quantum-shots.json'} ({shots} shots)")
 
 
 def find_run() -> tuple[Path, Path]:
@@ -340,6 +427,7 @@ def main() -> None:
         f"  backend={out['backend']} n={n} shots={shots} "
         f"unique_patterns={out['n_unique_patterns']} mean_defaults={out['mean_defaults']:.2f}"
     )
+    write_prototype_shots(samples, report)
 
 
 if __name__ == "__main__":

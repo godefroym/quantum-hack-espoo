@@ -1,13 +1,13 @@
 const facts = [
   {
     label: "Nodes",
-    value: "28 G-SIBs",
-    body: "A curated roster of real, publicly listed G-SIB / large banks.",
+    value: "38 entities",
+    body: "A roster of real, publicly listed institutions: 28 G-SIB / large banks and 10 non-financial corporates.",
   },
   {
     label: "Marginals",
     value: "S&P → PD",
-    body: "Each bank's public S&P rating mapped to a 1-year PD via the committed Moody's Exhibit-17 table.",
+    body: "Each entity's public S&P rating mapped to a 1-year PD via the committed Moody's Exhibit-17 table.",
   },
   {
     label: "Correlation",
@@ -21,13 +21,13 @@ const facts = [
   },
   {
     label: "Communities",
-    value: "3 stable",
-    body: "Greedy-modularity detection yields North America, Europe/UK/LatAm, and Japan, with a mean ARI of 0.96 under perturbation.",
+    value: "5 detected",
+    body: "Greedy-modularity detection finds five communities along region and sector lines, with a mean ARI of 0.85 under perturbation.",
   },
   {
     label: "Pipeline",
     value: "Frozen spec",
-    body: "One real dataset → a frozen canonical spec → a legible network, consumed without loss by every generator.",
+    body: "Real data is reconciled into one frozen canonical spec that every generator and the cascade simulator read.",
   },
 ]
 
@@ -42,13 +42,13 @@ export function NetworkSection() {
           The Real Exposure Network · Part A
         </span>
         <h2 className="mt-4 max-w-3xl text-4xl font-bold tracking-tight sm:text-5xl">
-          Grounded in a real 28-bank G-SIB network
+          Built on a real exposure network
         </h2>
         <p className="mt-6 max-w-3xl text-lg leading-relaxed text-muted-foreground">
-          The benchmark runs on a real anchor, not a toy. Real banks, real
-          ratings, and a real equity-return correlation are reconciled into a
-          single frozen, canonical spec that every generator and the cascade
-          simulator consume identically.
+          The benchmark runs on real data: public institutions, S&P-derived
+          default probabilities, and a measured equity-return correlation,
+          reconciled into one frozen spec that every generator and the cascade
+          simulator read identically.
         </p>
 
         <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
