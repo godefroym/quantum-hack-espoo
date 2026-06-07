@@ -1,9 +1,10 @@
-"""Export the cross-cluster 38-bit joint default-scenario counts (CSV) and a histogram.
+"""Export the cross-cluster n-bit joint default-scenario counts (CSV) and a histogram.
 
-The joint is the reconciled global sample from the stressed hardware run: each of the 200k
-shots is a 38-bit correlated default scenario (1 = institution defaults post-cascade input).
-NOTE: this joint is classically reconciled from the three per-cluster device samples, not a
-native 38-qubit device measurement -- see the run's analysis notes.
+The joint is the reconciled global sample from the stressed hardware run: each shot is an
+n-bit correlated default scenario (1 = institution defaults post-cascade input), where n and
+the cluster count are read from the run's reconciled NPZ (no fixed network size assumed).
+NOTE: this joint is classically reconciled from the per-cluster device samples, not a native
+n-qubit device measurement -- see the run's analysis notes.
 """
 
 from __future__ import annotations
@@ -26,15 +27,25 @@ from systemic_risk.data_network import build_network_spec
 OUTDIR = ROOT / "outputs" / "real_cluster_mixture_stress_hw"
 
 g = np.load(OUTDIR / "reconciled_global_stress.npz")
-joint = g["reconciled"]            # (200000, 38) int {0,1}
+joint = g["reconciled"]            # (n_shots, n) int {0,1}
 labels = g["labels"]               # cluster id per column
 n_shots, n = joint.shape
+severe = int(np.ceil(0.5 * n))     # "severe" = at least half the system defaults
 
 # --- qubit legend: which bank/company each bit position represents ---
 # Bit order in every bitstring below is positional: leftmost char = qubit 0,
-# rightmost = qubit 37, matching the node order of build_network_spec().
+# rightmost = qubit n-1, matching the node order of build_network_spec().
 emp = build_network_spec().empirical
-BLOC = {0: "A:US/Canada banks", 1: "B:Europe/UK+LatAm", 2: "C:Japan+corporates"}
+# Blocs are derived from each cluster's dominant member region(s), so this stays
+# correct for any partition (k, sizes) rather than the old hand-labelled k=3 map.
+from collections import Counter as _Counter
+_node_region = [emp.node_attributes[t].get("region", "?") for t in emp.node_ids]
+_k = int(labels.max()) + 1
+BLOC = {}
+for _c in range(_k):
+    _regs = [_node_region[i] for i in range(n) if int(labels[i]) == _c]
+    _top = "+".join(r for r, _ in _Counter(_regs).most_common(2))
+    BLOC[_c] = f"{chr(65 + _c)}:{_top}"
 legend = []
 for i, ticker in enumerate(emp.node_ids):
     a = emp.node_attributes[ticker]
@@ -64,7 +75,7 @@ rows = counts.most_common()        # sorted by count desc
 csv_path = OUTDIR / "joint_counts.csv"
 ticker_order = " ".join(r["ticker"] for r in legend)
 with csv_path.open("w") as fh:
-    fh.write(f"# bit order (left->right, qubit 0->37): {ticker_order}\n")
+    fh.write(f"# bit order (left->right, qubit 0->{n - 1}): {ticker_order}\n")
     fh.write("# see qubit_legend.csv for the bank/company behind each position\n")
     fh.write("bitstring,count,probability,n_defaults\n")
     for bs, ct in rows:
@@ -79,12 +90,12 @@ fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 # (a) THE correlated-failure histogram: how many institutions fail together per scenario
 axes[0].bar(np.arange(n + 1), hist, color="#b3202c", width=0.9)
 mean_def = defaults_per_shot.mean()
-p_severe = (defaults_per_shot >= 19).mean()
+p_severe = (defaults_per_shot >= severe).mean()
 axes[0].axvline(mean_def, color="k", ls="--", lw=1,
                 label=f"mean = {mean_def:.1f} defaults")
-axes[0].axvline(19, color="#444", ls=":", lw=1.2,
-                label=f"severe ≥19  (P={p_severe:.2f})")
-axes[0].set_xlabel("number of institutions defaulting in a scenario (of 38)")
+axes[0].axvline(severe, color="#444", ls=":", lw=1.2,
+                label=f"severe ≥{severe}  (P={p_severe:.2f})")
+axes[0].set_xlabel(f"number of institutions defaulting in a scenario (of {n})")
 axes[0].set_ylabel("shot count")
 axes[0].set_title("(a) Cross-cluster joint: correlated-failure distribution")
 axes[0].legend(frameon=False)
@@ -98,7 +109,7 @@ axes[1].set_xticks(range(topN))
 axes[1].set_xticklabels(labels, rotation=90, fontsize=7)
 axes[1].set_xlabel(f"top {topN} joint scenarios (labelled by # defaults)")
 axes[1].set_ylabel("shot count")
-axes[1].set_title("(b) Most frequent individual 38-bit joint scenarios")
+axes[1].set_title(f"(b) Most frequent individual {n}-bit joint scenarios")
 
 fig.suptitle(
     "Stressed real-network (2008 regime) — cross-cluster joint default scenarios, "
@@ -114,7 +125,7 @@ png_path = OUTDIR / "joint_counts_hist.png"
 fig.savefig(png_path, dpi=140)
 
 print(f"shots={n_shots:,}  distinct_joint_scenarios={len(counts):,}")
-print(f"mean defaults/scenario={mean_def:.2f}  P(severe>=19)={p_severe:.3f}  "
+print(f"mean defaults/scenario={mean_def:.2f}  P(severe>={severe})={p_severe:.3f}  "
       f"max defaults in any shot={defaults_per_shot.max()}")
 print(f"CSV  -> {csv_path}  ({len(rows):,} rows)")
 print(f"PNG  -> {png_path}")

@@ -37,10 +37,20 @@
     "TM",
     "VWAGY",
     "SIEGY",
-    "PBR"
+    "PBR",
+    "IDCBY",
+    "DBSDY",
+    "IBN",
+    "KB",
+    "CMWAY",
+    "WBC.AX",
+    "1120.SR",
+    "QNBK.QA",
+    "SGBLY",
+    "FANDY"
   ],
   "start": "2021-06-01",
   "end": "2024-06-01",
-  "n_obs": 755,
+  "n_obs": 556,
   "source": "Yahoo Finance daily adjusted close, log-return correlation (2021-06-01..2024-06-01)"
 }

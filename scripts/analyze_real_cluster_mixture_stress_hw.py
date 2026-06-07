@@ -1,31 +1,30 @@
-"""Comparative error/fidelity analysis: did the STRESS regime make the REAL 38-entity
+"""Comparative error/fidelity analysis: did the STRESS regime make the REAL exposure
 network measurable on hardware?
 
-Consumes three already-completed runs (NO QPU time, NO network here) on the SAME 3-cluster
-partition (14/14/10), 200k shots/cluster, ibm_boston:
+Consumes the completed runs (NO QPU time, NO network here) on the persisted partition,
+200k shots/cluster, ibm_boston:
 
-  1. BASELINE-HW  outputs/real_cluster_mixture_hw/            (real ~0.2% PDs, all below the
-                                                               ~2.7% device noise floor)
-  2. STRESS sim-preview  outputs/real_cluster_mixture_stress/ (exact statevector, 2008-calibrated
-                                                               ~15% mean PDs -- the faithful target)
-  3. STRESS-HW    outputs/real_cluster_mixture_stress_hw/     (same stressed spec on ibm_boston)
+  * STRESS-HW    outputs/real_cluster_mixture_stress_hw/     (stressed spec on ibm_boston)
+  * STRESS sim-preview  outputs/real_cluster_mixture_stress/ (exact statevector, the faithful
+                                                              target the hardware should match)
+  * BASELINE-HW  outputs/real_cluster_mixture_hw/            (OPTIONAL un-stressed faithful run;
+                                                              the before/after section is emitted
+                                                              only if this run matches the current
+                                                              network size n)
+
+The size (n), cluster count (k) and "severe" threshold are all read from the stress-HW run, so
+this works for any partition -- not just the original 38-entity / k=3 / severe>=19 case.
 
 It answers, quantitatively and bluntly:
 
   1. ERROR/FIDELITY of stressed-HW vs its loaded target (per-cluster + overall marginal RMSE/TV,
      within-cluster |corr| recovery, cross-cluster corr recovery, default-count TV), and the
-     decoherence bias (upward pull of marginals toward 0.5) related to circuit depth / 2q-gate
-     count.
-  2. THE KEY BEFORE/AFTER: stressed-HW vs BASELINE-HW. Does lifting the signal above the noise
-     floor recover the ORDERING of marginals (Spearman rank corr vs target, per cluster +
-     global, for BOTH runs) even when magnitudes stay biased? Correlations and downstream
-     cascade tail risk, before vs after.
+     decoherence bias (upward pull of marginals toward 0.5) related to circuit depth / 2q-gates.
+  2. (optional) BEFORE/AFTER vs BASELINE-HW -- only when a size-matched baseline run is present.
   3. GROUND-TRUTH framing: stressed-HW vs sim-preview vs reference on cascade tail risk
-     (P(severe)/CVaR/mean cascade count). Where does hardware land vs the faithful simulation?
+     (P(severe)/CVaR/mean cascade count).
 
-Reuses the repo's metrics (``_binary_corr``/``_mean_cross_block``/``default_count_distribution``/
-``total_variation``) and the diagnostics already serialized in the run reports + the reconciled
-global sample NPZs. Writes analysis_stress_comparison.{json,txt,png} into the stressed-HW dir.
+Writes analysis_stress_comparison.{json,txt,png} into the stressed-HW dir.
 """
 
 from __future__ import annotations
@@ -68,7 +67,6 @@ def per_cluster_fidelity(report: dict, run_tag: str) -> list[dict]:
         tgt = np.asarray(hw["target_marginals"], dtype=float)
         tgt_corr = float(hw["target_within_abs_corr"])
         obs_corr = float(hw["observed_within_abs_corr"])
-        # Spearman rank correlation of observed vs target marginals -- is the ORDERING recovered?
         if np.ptp(tgt) > 0 and np.ptp(obs) > 0:
             rho = float(spearmanr(obs, tgt).statistic)
         else:
@@ -93,10 +91,7 @@ def per_cluster_fidelity(report: dict, run_tag: str) -> list[dict]:
             "within_corr_recovery_fraction": (
                 round(obs_corr / tgt_corr, 4) if tgt_corr > 0 else float("nan")
             ),
-            # decoherence: how far the device pulled marginals toward the 0.5 max-mixed state.
-            # 0 = pure (0/1), 0.5 = fully mixed. Reported as the mean over the cluster.
             "marginal_mix_pull": round(float(np.mean(0.5 - np.abs(obs - 0.5))), 5),
-            # signed marginal bias (obs - target): positive = upward pull toward 0.5.
             "marginal_signed_bias": round(float(np.mean(obs - tgt)), 5),
         })
     return rows
@@ -124,14 +119,25 @@ def count_tv_between(a: np.ndarray, b: np.ndarray, n: int) -> float:
 
 
 def main() -> None:
-    base_report = json.loads((BASE_DIR / "real_hardware_run_report.json").read_text())
     stress_report = json.loads((STRESS_DIR / "real_stress_hardware_run_report.json").read_text())
     sim_report = json.loads((SIM_DIR / "stress_preview_report.json").read_text())
 
     n = int(stress_report["n"])
     labels = np.asarray(stress_report["labels"], dtype=int)
+    cluster_sizes = list(stress_report["cluster_sizes"])
+    k = len(cluster_sizes)
+    severe_thr = int(stress_report.get("cascade_severe", {}).get("severe_threshold_count",
+                                                                  int(np.ceil(0.5 * n))))
 
-    # reconciled global sample matrices (reconciled / independent / reference) for each run
+    # Optional baseline-HW: only used if it is the SAME network size (else it is a stale run on a
+    # different roster and the before/after comparison would be apples-to-oranges).
+    base_report = None
+    base_path = BASE_DIR / "real_hardware_run_report.json"
+    if base_path.exists():
+        candidate = json.loads(base_path.read_text())
+        if int(candidate.get("n", -1)) == n:
+            base_report = candidate
+
     stress_npz = np.load(STRESS_DIR / "reconciled_global_stress.npz")
     sim_npz = np.load(SIM_DIR / "reconciled_global_stress.npz")
 
@@ -142,82 +148,58 @@ def main() -> None:
     stress_overall = overall_marginal(stress_report)
     stress_overall["mean_within_corr_recovery_fraction"] = round(float(np.nanmean(
         [r["within_corr_recovery_fraction"] for r in stress_pc])), 4)
-    # cross-cluster correlation recovery: achieved/target from the reconciled global samples
     stress_cross_obs = _mean_cross_block(_binary_corr(stress_npz["reconciled"]), labels)
     stress_cross_ref = _mean_cross_block(_binary_corr(stress_npz["reference"]), labels)
     stress_overall["cross_cluster_corr_reconciled"] = round(float(stress_cross_obs), 5)
     stress_overall["cross_cluster_corr_reference"] = round(float(stress_cross_ref), 5)
     stress_overall["cross_cluster_corr_recovery_fraction"] = round(
-        float(stress_cross_obs / stress_cross_ref), 4)
-    # default-count TV of stress-HW reconciled vs its faithful sim-preview & vs reference
+        float(stress_cross_obs / stress_cross_ref), 4) if stress_cross_ref else float("nan")
     stress_overall["count_tv_hw_vs_simpreview"] = round(
         count_tv_between(stress_npz["reconciled"], sim_npz["reconciled"], n), 5)
     stress_overall["count_tv_hw_vs_reference"] = round(
         count_tv_between(stress_npz["reconciled"], stress_npz["reference"], n), 5)
 
     # =====================================================================
-    # 2. KEY BEFORE/AFTER: stress-HW vs BASELINE-HW
+    # 2. (optional) BEFORE/AFTER vs size-matched BASELINE-HW
     # =====================================================================
-    base_pc = per_cluster_fidelity(base_report, "baseline_hw")
-    base_overall = overall_marginal(base_report)
-    base_overall["mean_within_corr_recovery_fraction"] = round(float(np.nanmean(
-        [r["within_corr_recovery_fraction"] for r in base_pc])), 4)
-    base_cross_obs = base_report["diagnostics"]["reconciled"]["cross_cluster_corr"]
-    base_cross_ref = base_report["diagnostics"]["reference"]["cross_cluster_corr"]
-    base_overall["cross_cluster_corr_reconciled"] = round(float(base_cross_obs), 5)
-    base_overall["cross_cluster_corr_reference"] = round(float(base_cross_ref), 5)
-    base_overall["cross_cluster_corr_recovery_fraction"] = round(
-        float(base_cross_obs / base_cross_ref), 4)
-
-    before_after = {
-        "marginal_rmse_vs_target": {
-            "baseline_hw": base_overall["marginal_rmse_vs_target"],
-            "stress_hw": stress_overall["marginal_rmse_vs_target"],
-        },
-        "marginal_spearman_vs_target_global": {
-            "baseline_hw": base_overall["marginal_spearman_vs_target_global"],
-            "stress_hw": stress_overall["marginal_spearman_vs_target_global"],
-        },
-        "marginal_spearman_per_cluster": {
-            "baseline_hw": [r["marginal_spearman_vs_target"] for r in base_pc],
-            "stress_hw": [r["marginal_spearman_vs_target"] for r in stress_pc],
-        },
-        "mean_within_corr_recovery_fraction": {
-            "baseline_hw": base_overall["mean_within_corr_recovery_fraction"],
-            "stress_hw": stress_overall["mean_within_corr_recovery_fraction"],
-        },
-        "within_corr_recovery_per_cluster": {
-            "baseline_hw": [r["within_corr_recovery_fraction"] for r in base_pc],
-            "stress_hw": [r["within_corr_recovery_fraction"] for r in stress_pc],
-        },
-        "cross_cluster_corr_recovery_fraction": {
-            "baseline_hw": base_overall["cross_cluster_corr_recovery_fraction"],
-            "stress_hw": stress_overall["cross_cluster_corr_recovery_fraction"],
-        },
-    }
-
-    # downstream cascade tail risk, before/after, from each report's own diagnostics block
-    def tail(report: dict) -> dict:
-        d = report["diagnostics"]
-        sev = report.get("cascade_severe", {})
-        return {
-            "p_severe_reference": round(float(sev.get("reference", {}).get("p_severe", float("nan"))), 5),
-            "p_severe_reconciled": round(float(sev.get("reconciled", {}).get("p_severe", float("nan"))), 5),
-            "p_severe_independent": round(float(sev.get("independent", {}).get("p_severe", float("nan"))), 5),
-            "cvar_reference": round(float(d["reference"]["cascade_count_cvar"]), 4),
-            "cvar_reconciled": round(float(d["reconciled"]["cascade_count_cvar"]), 4),
-            "cvar_independent": round(float(d["independent"]["cascade_count_cvar"]), 4),
-            "mean_cascade_reference": round(float(d["reference"]["mean_cascade_count"]), 4),
-            "mean_cascade_reconciled": round(float(d["reconciled"]["mean_cascade_count"]), 4),
-            "mean_cascade_independent": round(float(d["independent"]["mean_cascade_count"]), 4),
-            "count_tv_reconciled_vs_ref": round(float(d["reconciled"]["count_tv_vs_ref"]), 5),
+    before_after = None
+    cascade_before_after = None
+    base_pc = None
+    base_overall = None
+    if base_report is not None:
+        base_pc = per_cluster_fidelity(base_report, "baseline_hw")
+        base_overall = overall_marginal(base_report)
+        base_overall["mean_within_corr_recovery_fraction"] = round(float(np.nanmean(
+            [r["within_corr_recovery_fraction"] for r in base_pc])), 4)
+        base_cross_obs = base_report["diagnostics"]["reconciled"]["cross_cluster_corr"]
+        base_cross_ref = base_report["diagnostics"]["reference"]["cross_cluster_corr"]
+        base_overall["cross_cluster_corr_recovery_fraction"] = round(
+            float(base_cross_obs / base_cross_ref), 4) if base_cross_ref else float("nan")
+        before_after = {
+            "marginal_rmse_vs_target": {
+                "baseline_hw": base_overall["marginal_rmse_vs_target"],
+                "stress_hw": stress_overall["marginal_rmse_vs_target"]},
+            "marginal_spearman_vs_target_global": {
+                "baseline_hw": base_overall["marginal_spearman_vs_target_global"],
+                "stress_hw": stress_overall["marginal_spearman_vs_target_global"]},
+            "mean_within_corr_recovery_fraction": {
+                "baseline_hw": base_overall["mean_within_corr_recovery_fraction"],
+                "stress_hw": stress_overall["mean_within_corr_recovery_fraction"]},
+            "cross_cluster_corr_recovery_fraction": {
+                "baseline_hw": base_overall["cross_cluster_corr_recovery_fraction"],
+                "stress_hw": stress_overall["cross_cluster_corr_recovery_fraction"]},
         }
 
-    cascade_before_after = {
-        "baseline_hw": tail(base_report),
-        "stress_hw": tail(stress_report),
-        "sim_preview": tail(sim_report),
-    }
+        def tail(report: dict) -> dict:
+            d = report["diagnostics"]
+            sev = report.get("cascade_severe", {})
+            return {
+                "cvar_reconciled": round(float(d["reconciled"]["cascade_count_cvar"]), 4),
+                "mean_cascade_reconciled": round(float(d["reconciled"]["mean_cascade_count"]), 4),
+                "count_tv_reconciled_vs_ref": round(float(d["reconciled"]["count_tv_vs_ref"]), 5),
+            }
+        cascade_before_after = {"baseline_hw": tail(base_report), "stress_hw": tail(stress_report),
+                                "sim_preview": tail(sim_report)}
 
     # =====================================================================
     # 3. GROUND-TRUTH framing: stress-HW vs sim-preview vs reference
@@ -254,163 +236,141 @@ def main() -> None:
     }
 
     analysis = {
-        "title": "Stress-regime hardware comparative analysis (REAL 38-entity network)",
+        "title": f"Stress-regime hardware comparative analysis (REAL {n}-entity network)",
         "backend": stress_report["backend"],
-        "partition": {"cluster_sizes": stress_report["cluster_sizes"], "n": n},
+        "partition": {"cluster_sizes": cluster_sizes, "n": n, "k": k},
+        "severe_threshold_count": severe_thr,
         "noise_floor": NOISE_FLOOR,
+        "baseline_hw_available": base_report is not None,
         "regimes": {
-            "baseline_hw": "real PDs (~0.2% mean), all 38 below 2.7% floor",
-            "stress_hw": "2008-calibrated PDs (~15% mean), all 38 above floor",
+            "stress_hw": f"2008-calibrated PDs (~15% mean), all {n} above the {NOISE_FLOOR} floor",
             "sim_preview": "exact statevector on the stressed spec (faithful target)",
+            "baseline_hw": ("size-matched un-stressed faithful run" if base_report is not None
+                            else "absent / size-mismatched -- before/after section omitted"),
         },
-        "1_stress_hw_fidelity": {
-            "per_cluster": stress_pc,
-            "overall": stress_overall,
-        },
-        "2_before_after_baseline_vs_stress": {
-            "baseline_per_cluster": base_pc,
-            "stress_per_cluster": stress_pc,
-            "summary": before_after,
-            "cascade_tail_risk": cascade_before_after,
-        },
+        "1_stress_hw_fidelity": {"per_cluster": stress_pc, "overall": stress_overall},
         "3_ground_truth_framing": ground_truth,
     }
+    if before_after is not None:
+        analysis["2_before_after_baseline_vs_stress"] = {
+            "baseline_per_cluster": base_pc, "stress_per_cluster": stress_pc,
+            "summary": before_after, "cascade_tail_risk": cascade_before_after}
     (STRESS_DIR / "analysis_stress_comparison.json").write_text(json.dumps(analysis, indent=2))
 
     # =====================================================================
     # written summary
     # =====================================================================
-    def fmt_pc(rows):
-        out = []
-        for r in rows:
-            out.append(
-                f"   {r['cluster']}      {r['qubits']:>2}    {r['transpiled_2q_gates']:>4}   "
-                f"{r['transpiled_depth']:>4} | {r['target_marg_mean']:>7.4f}  "
-                f"{r['obs_marg_mean']:>7.4f}  {r['marginal_rmse_vs_target']:>6.3f} | "
-                f"{r['marginal_spearman_vs_target']:>6.2f} | "
-                f"{r['target_within_abs_corr']:>6.3f} {r['obs_within_abs_corr']:>6.3f}  "
-                f"{r['within_corr_recovery_fraction'] if r['within_corr_recovery_fraction']==r['within_corr_recovery_fraction'] else float('nan'):>5.0%}"
-            )
-        return "\n".join(out)
-
-    ba = before_after
-    ca = cascade_before_after
+    so = stress_overall
     gt = ground_truth
+    # decoherence-vs-depth, data-driven: name the deepest and shallowest blocks
+    deepest = max(stress_pc, key=lambda r: r["transpiled_depth"])
+    shallowest = min(stress_pc, key=lambda r: r["transpiled_depth"])
     lines = []
-    lines.append("REAL 38-ENTITY HARDWARE -- STRESS vs BASELINE COMPARATIVE ANALYSIS")
+    lines.append(f"REAL {n}-ENTITY HARDWARE -- STRESS-REGIME COMPARATIVE ANALYSIS")
     lines.append("=" * 68)
-    lines.append("Backend: ibm_boston | 200,000 shots/cluster | same 14/14/10 partition")
-    lines.append("BASELINE-HW: real ~0.2% PDs, all 38 below the 2.7% noise floor.")
-    lines.append("STRESS-HW:   2008-calibrated ~15% PDs, all 38 ABOVE the floor (SNR mean ~5.6).")
+    lines.append(f"Backend: {stress_report['backend']} | 200,000 shots/cluster | "
+                 f"k={k} partition sizes {cluster_sizes}")
+    lines.append(f"STRESS-HW:   2008-calibrated ~15% PDs, all {n} ABOVE the {NOISE_FLOOR} floor "
+                 f"(SNR mean ~{stress_report['loadability']['snr_mean']}).")
     lines.append("SIM-PREVIEW: exact statevector on the stressed spec = the faithful target.")
+    lines.append("REFERENCE:   full-network Gaussian-copula joint on the stressed target.")
+    if base_report is None:
+        lines.append("BASELINE-HW: not reproduced for this network size -- before/after section omitted")
+        lines.append("             (run scripts/run_real_cluster_mixture_hardware.py to add it).")
     lines.append("Artifacts: analysis_stress_comparison.json (all numbers), .png, this file.")
     lines.append("")
     lines.append("BOTTOM LINE")
     lines.append("-----------")
     lines.append(
-        "Lifting the signal above the noise floor turned the real network from UNMEASURABLE "
-        "into a\nPARTIAL, structurally-meaningful hardware demonstration -- but NOT a "
-        "magnitude-faithful one.")
+        f"Lifting the signal above the noise floor makes the real {n}-entity network a PARTIAL, "
+        "structurally-meaningful\nhardware demonstration -- but NOT a magnitude-faithful one.")
     lines.append(
-        f"What stress BOUGHT us: the marginal ORDERING moves from noise to a genuinely positive "
-        f"rank signal\n(global Spearman vs target "
-        f"{ba['marginal_spearman_vs_target_global']['baseline_hw']:+.2f} baseline -> "
-        f"{ba['marginal_spearman_vs_target_global']['stress_hw']:+.2f} stress), and the "
-        f"within-cluster |corr| recovery becomes\nREAL rather than spurious "
-        f"({ba['mean_within_corr_recovery_fraction']['stress_hw']:.0%} of target on above-floor "
-        f"targets vs the baseline's noise-manufactured\ncorrelations on ~0 targets). The "
-        f"cross-cluster coupling is reconstructed "
-        f"({ba['cross_cluster_corr_recovery_fraction']['stress_hw']:.0%} of reference) -- but that "
-        f"is the\nclassical reconciler, not the device.")
+        f"Marginal ORDERING vs target: global Spearman {so['marginal_spearman_vs_target_global']:+.2f}; "
+        f"within-cluster |corr| recovery {so['mean_within_corr_recovery_fraction']:.0%} of target. "
+        f"Cross-cluster\ncoupling is reconstructed to {so['cross_cluster_corr_recovery_fraction']:.0%} "
+        "of reference -- but by the CLASSICAL reconciler, not the device.")
     lines.append(
-        f"What it did NOT buy: faithful marginal MAGNITUDES. Decoherence still pulls every qubit "
-        f"toward\n0.5, so the overall marginal RMSE vs target stays large "
-        f"({stress_overall['marginal_rmse_vs_target']:.3f}, mean signed\nbias "
-        f"{stress_overall['mean_signed_bias']:+.3f} = upward pull). The cascade tail is therefore "
-        f"HARDWARE-PERTURBED\n(overstated), not ground truth.")
+        f"What it did NOT buy: faithful MAGNITUDES. Decoherence pulls qubits toward 0.5, so overall "
+        f"marginal\nRMSE vs target stays large ({so['marginal_rmse_vs_target']:.3f}, mean signed bias "
+        f"{so['mean_signed_bias']:+.3f} = upward pull). The cascade tail\nis therefore "
+        "HARDWARE-PERTURBED (overstated), not ground truth.")
     lines.append("")
     lines.append("1. STRESS-HW ERROR/FIDELITY vs LOADED TARGET (decoherence vs depth)")
     lines.append("-" * 66)
     lines.append("cl qub 2q-gates depth | tgt_marg obs_marg  RMSE | Spear | tgt|c| obs|c| recov")
-    lines.append(fmt_pc(stress_pc))
+    for r in stress_pc:
+        rec = r["within_corr_recovery_fraction"]
+        rec = rec if rec == rec else float("nan")
+        lines.append(
+            f"   {r['cluster']}      {r['qubits']:>2}    {r['transpiled_2q_gates']:>4}   "
+            f"{r['transpiled_depth']:>4} | {r['target_marg_mean']:>7.4f}  "
+            f"{r['obs_marg_mean']:>7.4f}  {r['marginal_rmse_vs_target']:>6.3f} | "
+            f"{r['marginal_spearman_vs_target']:>6.2f} | "
+            f"{r['target_within_abs_corr']:>6.3f} {r['obs_within_abs_corr']:>6.3f}  {rec:>5.0%}")
     lines.append(
-        f"overall: marginal RMSE {stress_overall['marginal_rmse_vs_target']:.3f}, "
-        f"TV {stress_overall['marginal_tv_vs_target']:.3f}, "
-        f"global Spearman {stress_overall['marginal_spearman_vs_target_global']:+.2f}, "
-        f"signed bias {stress_overall['mean_signed_bias']:+.3f}")
+        f"overall: marginal RMSE {so['marginal_rmse_vs_target']:.3f}, "
+        f"TV {so['marginal_tv_vs_target']:.3f}, "
+        f"global Spearman {so['marginal_spearman_vs_target_global']:+.2f}, "
+        f"signed bias {so['mean_signed_bias']:+.3f}")
     lines.append(
-        f"         within-corr recovery {stress_overall['mean_within_corr_recovery_fraction']:.0%}, "
-        f"cross-cluster corr recovery "
-        f"{stress_overall['cross_cluster_corr_recovery_fraction']:.0%} "
-        f"({stress_overall['cross_cluster_corr_reconciled']:.3f} vs ref "
-        f"{stress_overall['cross_cluster_corr_reference']:.3f})")
+        f"         within-corr recovery {so['mean_within_corr_recovery_fraction']:.0%}, "
+        f"cross-cluster corr recovery {so['cross_cluster_corr_recovery_fraction']:.0%} "
+        f"({so['cross_cluster_corr_reconciled']:.3f} vs ref "
+        f"{so['cross_cluster_corr_reference']:.3f})")
     lines.append(
-        f"         default-count TV: HW vs sim-preview {stress_overall['count_tv_hw_vs_simpreview']:.3f}, "
-        f"HW vs reference {stress_overall['count_tv_hw_vs_reference']:.3f}")
+        f"         default-count TV: HW vs sim-preview {so['count_tv_hw_vs_simpreview']:.3f}, "
+        f"HW vs reference {so['count_tv_hw_vs_reference']:.3f}")
     lines.append(
         "- Decoherence bias: mix-pull (0=pure,0.5=mixed) tracks depth -- "
         + ", ".join(f"c{r['cluster']}={r['marginal_mix_pull']:.2f}@d{r['transpiled_depth']}"
-                    for r in stress_pc)
-        + ". The deepest 14q blocks (478/459 2q-gates) inflate most; "
-          "the 10q block (211 gates) leaks least.")
+                    for r in stress_pc) + ".")
+    lines.append(
+        f"  The deepest block (c{deepest['cluster']}, {deepest['qubits']}q, "
+        f"{deepest['transpiled_2q_gates']} 2q-gates, depth {deepest['transpiled_depth']}) inflates "
+        f"most; the shallowest (c{shallowest['cluster']}, depth {shallowest['transpiled_depth']}) "
+        "leaks least.")
     lines.append(
         "- Even above the floor, marginals are biased UP toward 0.5 -- the magnitudes are NOT "
         "trustworthy; the ORDER is.")
     lines.append("")
-    lines.append("2. BEFORE/AFTER -- BASELINE-HW vs STRESS-HW (what above-floor signal bought)")
-    lines.append("-" * 66)
-    lines.append("metric                                   baseline-HW    stress-HW")
-    lines.append(
-        f"marginal RMSE vs target                    {ba['marginal_rmse_vs_target']['baseline_hw']:>7.3f}      "
-        f"{ba['marginal_rmse_vs_target']['stress_hw']:>7.3f}")
-    lines.append(
-        f"marginal Spearman vs target (GLOBAL)       {ba['marginal_spearman_vs_target_global']['baseline_hw']:>+7.2f}      "
-        f"{ba['marginal_spearman_vs_target_global']['stress_hw']:>+7.2f}")
-    lines.append(
-        f"  per-cluster Spearman [c0,c1,c2]   base {ba['marginal_spearman_per_cluster']['baseline_hw']}  "
-        f"stress {ba['marginal_spearman_per_cluster']['stress_hw']}")
-    lines.append(
-        f"within-cluster |corr| recovery (mean)      {ba['mean_within_corr_recovery_fraction']['baseline_hw']:>6.0%}       "
-        f"{ba['mean_within_corr_recovery_fraction']['stress_hw']:>6.0%}")
-    lines.append(
-        f"cross-cluster corr recovery                {ba['cross_cluster_corr_recovery_fraction']['baseline_hw']:>6.0%}       "
-        f"{ba['cross_cluster_corr_recovery_fraction']['stress_hw']:>6.0%}")
-    lines.append("")
-    lines.append("   Cascade tail risk (post-contagion count), reconciled global joint:")
-    lines.append("   (P(severe) is omitted here: baseline & stress use DIFFERENT references, so it")
-    lines.append("    is not comparable across the two runs -- see section 3 for stress-vs-truth.)")
-    lines.append("   metric                  baseline-HW   stress-HW   sim-preview")
-    lines.append(
-        f"   CVaR95 cascade count     {ca['baseline_hw']['cvar_reconciled']:>8.2f}   "
-        f"{ca['stress_hw']['cvar_reconciled']:>8.2f}   "
-        f"{ca['sim_preview']['cvar_reconciled']:>8.2f}")
-    lines.append(
-        f"   mean cascade count       {ca['baseline_hw']['mean_cascade_reconciled']:>8.2f}   "
-        f"{ca['stress_hw']['mean_cascade_reconciled']:>8.2f}   "
-        f"{ca['sim_preview']['mean_cascade_reconciled']:>8.2f}")
-    lines.append(
-        f"   count-TV vs (own) ref    {ca['baseline_hw']['count_tv_reconciled_vs_ref']:>8.3f}   "
-        f"{ca['stress_hw']['count_tv_reconciled_vs_ref']:>8.3f}   "
-        f"{ca['sim_preview']['count_tv_reconciled_vs_ref']:>8.3f}")
-    lines.append(
-        "- Marginal ordering: baseline-HW global Spearman is a weak +0.25 dominated by noise "
-        "(targets all\n  buried under the floor; per-cluster it is [0.16, 0.24, 0.42]); stress-HW "
-        "rises to +0.36 GLOBALLY and to\n  +0.84 on cluster 1 -- the device now sees WHICH "
-        "entities are riskier where the signal is strongest.\n  NOTE: cluster 0 actually "
-        "regresses (Spearman -0.42): recovery is real but UNEVEN, not uniform.")
-    lines.append(
-        "- Correlations: the baseline's 103% within-|corr| 'recovery' is SPURIOUS -- noise "
-        "manufacturing\n  correlation on ~0 targets (per-cluster up to 186%). Stress-HW's 71% is a "
-        "GENUINE retention of real,\n  above-floor entanglement structure. So the honest story is "
-        "spurious->real, not low->high.")
-    lines.append(
-        "- Cascade: baseline-HW's reconciled count law is TV 0.92 from its own reference (no "
-        "signal, ~ the\n  independent baseline); stress-HW closes that to TV 0.44 -- markedly "
-        "closer to the right distribution,\n  though still OVERSTATED by the marginal inflation "
-        "(see section 3).")
-    lines.append("")
+
+    if before_after is not None:
+        ba = before_after
+        ca = cascade_before_after
+        lines.append("2. BEFORE/AFTER -- BASELINE-HW vs STRESS-HW (what above-floor signal bought)")
+        lines.append("-" * 66)
+        lines.append("metric                                   baseline-HW    stress-HW")
+        lines.append(
+            f"marginal RMSE vs target                    "
+            f"{ba['marginal_rmse_vs_target']['baseline_hw']:>7.3f}      "
+            f"{ba['marginal_rmse_vs_target']['stress_hw']:>7.3f}")
+        lines.append(
+            f"marginal Spearman vs target (GLOBAL)       "
+            f"{ba['marginal_spearman_vs_target_global']['baseline_hw']:>+7.2f}      "
+            f"{ba['marginal_spearman_vs_target_global']['stress_hw']:>+7.2f}")
+        lines.append(
+            f"within-cluster |corr| recovery (mean)      "
+            f"{ba['mean_within_corr_recovery_fraction']['baseline_hw']:>6.0%}       "
+            f"{ba['mean_within_corr_recovery_fraction']['stress_hw']:>6.0%}")
+        lines.append(
+            f"cross-cluster corr recovery                "
+            f"{ba['cross_cluster_corr_recovery_fraction']['baseline_hw']:>6.0%}       "
+            f"{ba['cross_cluster_corr_recovery_fraction']['stress_hw']:>6.0%}")
+        lines.append("   Cascade tail risk (reconciled global joint):")
+        lines.append("   metric                  baseline-HW   stress-HW   sim-preview")
+        lines.append(
+            f"   CVaR95 cascade count     {ca['baseline_hw']['cvar_reconciled']:>8.2f}   "
+            f"{ca['stress_hw']['cvar_reconciled']:>8.2f}   "
+            f"{ca['sim_preview']['cvar_reconciled']:>8.2f}")
+        lines.append(
+            f"   mean cascade count       {ca['baseline_hw']['mean_cascade_reconciled']:>8.2f}   "
+            f"{ca['stress_hw']['mean_cascade_reconciled']:>8.2f}   "
+            f"{ca['sim_preview']['mean_cascade_reconciled']:>8.2f}")
+        lines.append("")
+
     lines.append("3. GROUND-TRUTH FRAMING -- stress-HW vs sim-preview vs reference (tail risk)")
     lines.append("-" * 66)
+    lines.append(f"severe = post-cascade default count >= {severe_thr} (of {n})")
     lines.append("metric                  reference   sim-preview(faithful)   stress-HW")
     lines.append(
         f"P(severe)               {gt['p_severe']['reference']:>8.3f}   "
@@ -428,31 +388,27 @@ def main() -> None:
         f"count-TV vs ref               --     {gt['count_tv_vs_ref']['sim_preview']:>13.3f}        "
         f"{gt['count_tv_vs_ref']['stress_hw']:>8.3f}")
     lines.append(
-        f"- Hardware lands ABOVE the faithful sim-preview on every tail metric: it overstates "
-        f"P(severe)\n  ({gt['p_severe']['stress_hw']:.2f} vs sim {gt['p_severe']['sim_preview']:.2f}, "
-        f"ref {gt['p_severe']['reference']:.2f}) and mean cascade "
-        f"({gt['mean_cascade_count']['stress_hw']:.1f} vs sim "
-        f"{gt['mean_cascade_count']['sim_preview']:.1f}). CVaR is\n  closer (saturates near the "
-        f"system size). The HW reconciled count-distribution sits TV "
-        f"{gt['stress_hw_vs_simpreview_count_tv']:.2f} from\n  the faithful sim-preview -- "
+        f"- Hardware overstates P(severe) ({gt['p_severe']['stress_hw']:.2f} vs sim "
+        f"{gt['p_severe']['sim_preview']:.2f}, ref {gt['p_severe']['reference']:.2f}) and mean "
+        f"cascade ({gt['mean_cascade_count']['stress_hw']:.1f}\n  vs sim "
+        f"{gt['mean_cascade_count']['sim_preview']:.1f}). The HW reconciled count-distribution sits "
+        f"TV {gt['stress_hw_vs_simpreview_count_tv']:.2f} from the\n  faithful sim-preview -- "
         "same regime, hardware-perturbed.")
     lines.append("")
     lines.append("VERDICT")
     lines.append("-------")
     lines.append(
-        "YES -- the stress regime makes the real 38-entity network a LEGITIMATE, if qualified, "
-        "hardware\ndemonstration. Above the noise floor the QPU recovers a real (if uneven) "
-        "marginal ORDERING and\nGENUINELY retains within-cluster correlation (71% of target) "
-        "instead of the baseline's noise-manufactured\nspurious correlation -- and the cascade "
-        "count law moves from TV 0.92 (no signal) to TV 0.44 vs truth.\nThis is a real signal, "
-        "not decoherence -- the before/after vs the buried baseline is unambiguous.")
+        f"The stress regime makes the real {n}-entity network a LEGITIMATE, if qualified, hardware "
+        "demonstration:\nabove the noise floor the QPU recovers a real (if uneven) marginal "
+        f"ORDERING (global Spearman "
+        f"{so['marginal_spearman_vs_target_global']:+.2f})\nand retains within-cluster correlation "
+        f"({so['mean_within_corr_recovery_fraction']:.0%} of target).")
     lines.append(
-        "CAVEATS: (1) marginal MAGNITUDES remain decoherence-biased upward toward 0.5 (RMSE "
-        f"~{stress_overall['marginal_rmse_vs_target']:.2f}),\nso absolute PDs are not "
-        "trustworthy; (2) the cascade tail numbers are therefore HARDWARE-PERTURBED and\n"
-        "overstate risk relative to the faithful sim-preview; (3) the cross-cluster correlation "
-        "is rebuilt by\nthe CLASSICAL reconciler (fit to the spec target), not measured on the "
-        "device. Honest framing:\na correlation/ordering-faithful hardware demo, magnitude- and "
+        f"CAVEATS: (1) marginal MAGNITUDES stay decoherence-biased upward (RMSE "
+        f"~{so['marginal_rmse_vs_target']:.2f}), so absolute PDs\nare not trustworthy; (2) the "
+        "cascade tail numbers are HARDWARE-PERTURBED and overstate risk vs the faithful\nsim-preview; "
+        "(3) the cross-cluster correlation is rebuilt by the CLASSICAL reconciler, not measured "
+        "on-device.\nHonest framing: a correlation/ordering-faithful hardware demo, magnitude- and "
         "tail-perturbed.")
     summary = "\n".join(lines)
     (STRESS_DIR / "analysis_stress_comparison.txt").write_text(summary + "\n")
@@ -467,10 +423,12 @@ def main() -> None:
 
         fig, axes = plt.subplots(1, 3, figsize=(17, 4.8))
 
-        # (a) observed vs target marginals, baseline vs stress, with floor
+        # (a) observed vs target marginals (stress; baseline overlaid only if size-matched)
         ax = axes[0]
-        for rep, color, tag in ((base_report, "tab:gray", "baseline-HW"),
-                                (stress_report, "tab:blue", "stress-HW")):
+        series = [(stress_report, "tab:blue", "stress-HW")]
+        if base_report is not None:
+            series.insert(0, (base_report, "tab:gray", "baseline-HW"))
+        for rep, color, tag in series:
             obs = np.concatenate([np.asarray(h["observed_marginals"], float)
                                   for h in rep["hardware_per_cluster"]])
             tgt = np.concatenate([np.asarray(h["target_marginals"], float)
@@ -484,44 +442,32 @@ def main() -> None:
         ax.set_ylim(0, 0.75)
         ax.set_xlabel("target default probability")
         ax.set_ylabel("observed (hardware) marginal")
-        ax.set_title("(a) Observed vs target marginals\nbaseline (buried) vs stress (above floor)")
+        ax.set_title("(a) Observed vs target marginals\n(stress regime, above floor)")
         ax.legend(fontsize=7)
 
-        # (b) before/after recovery bars: rank, within-corr, cross-corr
+        # (b) stress structure recovery bars: rank, within-corr, cross-corr
         ax = axes[1]
         cats = ["marg rank\n(|Spearman|)", "within-corr\nrecovery", "cross-corr\nrecovery"]
-        base_vals = [abs(base_overall["marginal_spearman_vs_target_global"]),
-                     base_overall["mean_within_corr_recovery_fraction"],
-                     base_overall["cross_cluster_corr_recovery_fraction"]]
-        stress_vals = [abs(stress_overall["marginal_spearman_vs_target_global"]),
-                       stress_overall["mean_within_corr_recovery_fraction"],
-                       stress_overall["cross_cluster_corr_recovery_fraction"]]
+        stress_vals = [abs(so["marginal_spearman_vs_target_global"]),
+                       so["mean_within_corr_recovery_fraction"],
+                       so["cross_cluster_corr_recovery_fraction"]]
         x = np.arange(len(cats))
-        w = 0.36
-        bbars = ax.bar(x - w / 2, base_vals, w, color="tab:gray", label="baseline-HW")
-        ax.bar(x + w / 2, stress_vals, w, color="tab:blue", label="stress-HW")
-        # mark the baseline within-corr bar as SPURIOUS (noise-manufactured on ~0 targets)
-        bbars[1].set_hatch("xx")
-        bbars[1].set_edgecolor("red")
-        ax.text(1 - w / 2, base_vals[1] + 0.07, "spurious\n(noise)", ha="center",
-                fontsize=6, color="red")
-        for i, (b, s) in enumerate(zip(base_vals, stress_vals)):
-            ax.text(i - w / 2, b + 0.02, f"{b:.2f}", ha="center", fontsize=8)
-            ax.text(i + w / 2, s + 0.02, f"{s:.2f}", ha="center", fontsize=8)
+        ax.bar(x, stress_vals, 0.6, color="tab:blue", label="stress-HW")
+        for i, s in enumerate(stress_vals):
+            ax.text(i, s + 0.02, f"{s:.2f}", ha="center", fontsize=9)
         ax.set_xticks(x)
         ax.set_xticklabels(cats, fontsize=9)
         ax.set_ylabel("recovery fraction")
-        ax.set_title("(b) Structure recovery: BEFORE vs AFTER\n"
-                     "(baseline within-corr is spurious; stress is real)")
+        ax.set_title("(b) Structure recovery (stress-HW)\n(cross-corr is reconciler, not device)")
         ax.legend(fontsize=8)
 
-        # (c) cascade tail (CVaR + mean) reference vs sim vs stress-HW vs baseline-HW
+        # (c) cascade tail (CVaR + mean) reference vs sim vs stress-HW
         ax = axes[2]
-        keys = ["reference\n(truth)", "sim-preview\n(faithful)", "stress-HW", "baseline-HW"]
+        keys = ["reference\n(truth)", "sim-preview\n(faithful)", "stress-HW"]
         cvars = [gt["cascade_cvar95"]["reference"], gt["cascade_cvar95"]["sim_preview"],
-                 gt["cascade_cvar95"]["stress_hw"], ca["baseline_hw"]["cvar_reconciled"]]
+                 gt["cascade_cvar95"]["stress_hw"]]
         means = [gt["mean_cascade_count"]["reference"], gt["mean_cascade_count"]["sim_preview"],
-                 gt["mean_cascade_count"]["stress_hw"], ca["baseline_hw"]["mean_cascade_reconciled"]]
+                 gt["mean_cascade_count"]["stress_hw"]]
         x = np.arange(len(keys))
         w = 0.36
         ax.bar(x - w / 2, cvars, w, color="tab:purple", label="CVaR95")

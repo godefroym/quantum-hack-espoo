@@ -7,7 +7,7 @@
     "business_type": "universal",
     "region": "US",
     "cluster": 0,
-    "bloc": "A:US/Canada banks"
+    "bloc": "A:US+CA"
   },
   {
     "qubit": 1,
@@ -17,7 +17,7 @@
     "business_type": "universal",
     "region": "US",
     "cluster": 0,
-    "bloc": "A:US/Canada banks"
+    "bloc": "A:US+CA"
   },
   {
     "qubit": 2,
@@ -27,7 +27,7 @@
     "business_type": "universal",
     "region": "US",
     "cluster": 0,
-    "bloc": "A:US/Canada banks"
+    "bloc": "A:US+CA"
   },
   {
     "qubit": 3,
@@ -37,7 +37,7 @@
     "business_type": "universal",
     "region": "US",
     "cluster": 0,
-    "bloc": "A:US/Canada banks"
+    "bloc": "A:US+CA"
   },
   {
     "qubit": 4,
@@ -47,7 +47,7 @@
     "business_type": "investment",
     "region": "US",
     "cluster": 0,
-    "bloc": "A:US/Canada banks"
+    "bloc": "A:US+CA"
   },
   {
     "qubit": 5,
@@ -57,7 +57,7 @@
     "business_type": "investment",
     "region": "US",
     "cluster": 0,
-    "bloc": "A:US/Canada banks"
+    "bloc": "A:US+CA"
   },
   {
     "qubit": 6,
@@ -67,7 +67,7 @@
     "business_type": "regional",
     "region": "US",
     "cluster": 0,
-    "bloc": "A:US/Canada banks"
+    "bloc": "A:US+CA"
   },
   {
     "qubit": 7,
@@ -77,7 +77,7 @@
     "business_type": "regional",
     "region": "US",
     "cluster": 0,
-    "bloc": "A:US/Canada banks"
+    "bloc": "A:US+CA"
   },
   {
     "qubit": 8,
@@ -87,7 +87,7 @@
     "business_type": "regional",
     "region": "US",
     "cluster": 0,
-    "bloc": "A:US/Canada banks"
+    "bloc": "A:US+CA"
   },
   {
     "qubit": 9,
@@ -97,7 +97,7 @@
     "business_type": "custodian",
     "region": "US",
     "cluster": 0,
-    "bloc": "A:US/Canada banks"
+    "bloc": "A:US+CA"
   },
   {
     "qubit": 10,
@@ -107,7 +107,7 @@
     "business_type": "custodian",
     "region": "US",
     "cluster": 0,
-    "bloc": "A:US/Canada banks"
+    "bloc": "A:US+CA"
   },
   {
     "qubit": 11,
@@ -116,8 +116,8 @@
     "node_type": "bank",
     "business_type": "universal",
     "region": "UK",
-    "cluster": 1,
-    "bloc": "B:Europe/UK+LatAm"
+    "cluster": 2,
+    "bloc": "C:EU+UK"
   },
   {
     "qubit": 12,
@@ -126,8 +126,8 @@
     "node_type": "bank",
     "business_type": "universal",
     "region": "UK",
-    "cluster": 1,
-    "bloc": "B:Europe/UK+LatAm"
+    "cluster": 2,
+    "bloc": "C:EU+UK"
   },
   {
     "qubit": 13,
@@ -136,8 +136,8 @@
     "node_type": "bank",
     "business_type": "regional",
     "region": "UK",
-    "cluster": 1,
-    "bloc": "B:Europe/UK+LatAm"
+    "cluster": 2,
+    "bloc": "C:EU+UK"
   },
   {
     "qubit": 14,
@@ -146,8 +146,8 @@
     "node_type": "bank",
     "business_type": "universal",
     "region": "EU",
-    "cluster": 1,
-    "bloc": "B:Europe/UK+LatAm"
+    "cluster": 2,
+    "bloc": "C:EU+UK"
   },
   {
     "qubit": 15,
@@ -156,8 +156,8 @@
     "node_type": "bank",
     "business_type": "universal",
     "region": "EU",
-    "cluster": 1,
-    "bloc": "B:Europe/UK+LatAm"
+    "cluster": 2,
+    "bloc": "C:EU+UK"
   },
   {
     "qubit": 16,
@@ -166,8 +166,8 @@
     "node_type": "bank",
     "business_type": "universal",
     "region": "EU",
-    "cluster": 1,
-    "bloc": "B:Europe/UK+LatAm"
+    "cluster": 2,
+    "bloc": "C:EU+UK"
   },
   {
     "qubit": 17,
@@ -176,8 +176,8 @@
     "node_type": "bank",
     "business_type": "universal",
     "region": "EU",
-    "cluster": 1,
-    "bloc": "B:Europe/UK+LatAm"
+    "cluster": 2,
+    "bloc": "C:EU+UK"
   },
   {
     "qubit": 18,
@@ -186,8 +186,8 @@
     "node_type": "bank",
     "business_type": "investment",
     "region": "EU",
-    "cluster": 1,
-    "bloc": "B:Europe/UK+LatAm"
+    "cluster": 2,
+    "bloc": "C:EU+UK"
   },
   {
     "qubit": 19,
@@ -196,8 +196,8 @@
     "node_type": "bank",
     "business_type": "universal",
     "region": "JP",
-    "cluster": 2,
-    "bloc": "C:Japan+corporates"
+    "cluster": 3,
+    "bloc": "D:JP+OCEANIA"
   },
   {
     "qubit": 20,
@@ -206,8 +206,8 @@
     "node_type": "bank",
     "business_type": "universal",
     "region": "JP",
-    "cluster": 2,
-    "bloc": "C:Japan+corporates"
+    "cluster": 3,
+    "bloc": "D:JP+OCEANIA"
   },
   {
     "qubit": 21,
@@ -216,8 +216,8 @@
     "node_type": "bank",
     "business_type": "universal",
     "region": "JP",
-    "cluster": 2,
-    "bloc": "C:Japan+corporates"
+    "cluster": 3,
+    "bloc": "D:JP+OCEANIA"
   },
   {
     "qubit": 22,
@@ -226,8 +226,8 @@
     "node_type": "bank",
     "business_type": "investment",
     "region": "JP",
-    "cluster": 2,
-    "bloc": "C:Japan+corporates"
+    "cluster": 3,
+    "bloc": "D:JP+OCEANIA"
   },
   {
     "qubit": 23,
@@ -237,7 +237,7 @@
     "business_type": "universal",
     "region": "CA",
     "cluster": 0,
-    "bloc": "A:US/Canada banks"
+    "bloc": "A:US+CA"
   },
   {
     "qubit": 24,
@@ -247,7 +247,7 @@
     "business_type": "universal",
     "region": "CA",
     "cluster": 0,
-    "bloc": "A:US/Canada banks"
+    "bloc": "A:US+CA"
   },
   {
     "qubit": 25,
@@ -257,7 +257,7 @@
     "business_type": "universal",
     "region": "CA",
     "cluster": 0,
-    "bloc": "A:US/Canada banks"
+    "bloc": "A:US+CA"
   },
   {
     "qubit": 26,
@@ -267,7 +267,7 @@
     "business_type": "universal",
     "region": "LATAM",
     "cluster": 1,
-    "bloc": "B:Europe/UK+LatAm"
+    "bloc": "B:US+APAC"
   },
   {
     "qubit": 27,
@@ -277,7 +277,7 @@
     "business_type": "universal",
     "region": "LATAM",
     "cluster": 1,
-    "bloc": "B:Europe/UK+LatAm"
+    "bloc": "B:US+APAC"
   },
   {
     "qubit": 28,
@@ -286,8 +286,8 @@
     "node_type": "corporate",
     "business_type": "technology",
     "region": "US",
-    "cluster": 2,
-    "bloc": "C:Japan+corporates"
+    "cluster": 1,
+    "bloc": "B:US+APAC"
   },
   {
     "qubit": 29,
@@ -296,8 +296,8 @@
     "node_type": "corporate",
     "business_type": "technology",
     "region": "US",
-    "cluster": 2,
-    "bloc": "C:Japan+corporates"
+    "cluster": 1,
+    "bloc": "B:US+APAC"
   },
   {
     "qubit": 30,
@@ -306,8 +306,8 @@
     "node_type": "corporate",
     "business_type": "energy",
     "region": "US",
-    "cluster": 2,
-    "bloc": "C:Japan+corporates"
+    "cluster": 0,
+    "bloc": "A:US+CA"
   },
   {
     "qubit": 31,
@@ -316,8 +316,8 @@
     "node_type": "corporate",
     "business_type": "retail",
     "region": "US",
-    "cluster": 2,
-    "bloc": "C:Japan+corporates"
+    "cluster": 3,
+    "bloc": "D:JP+OCEANIA"
   },
   {
     "qubit": 32,
@@ -327,7 +327,7 @@
     "business_type": "aerospace",
     "region": "US",
     "cluster": 1,
-    "bloc": "B:Europe/UK+LatAm"
+    "bloc": "B:US+APAC"
   },
   {
     "qubit": 33,
@@ -336,8 +336,8 @@
     "node_type": "corporate",
     "business_type": "telecom",
     "region": "US",
-    "cluster": 2,
-    "bloc": "C:Japan+corporates"
+    "cluster": 1,
+    "bloc": "B:US+APAC"
   },
   {
     "qubit": 34,
@@ -346,8 +346,8 @@
     "node_type": "corporate",
     "business_type": "automotive",
     "region": "JP",
-    "cluster": 2,
-    "bloc": "C:Japan+corporates"
+    "cluster": 3,
+    "bloc": "D:JP+OCEANIA"
   },
   {
     "qubit": 35,
@@ -356,8 +356,8 @@
     "node_type": "corporate",
     "business_type": "automotive",
     "region": "EU",
-    "cluster": 1,
-    "bloc": "B:Europe/UK+LatAm"
+    "cluster": 2,
+    "bloc": "C:EU+UK"
   },
   {
     "qubit": 36,
@@ -366,8 +366,8 @@
     "node_type": "corporate",
     "business_type": "industrial",
     "region": "EU",
-    "cluster": 1,
-    "bloc": "B:Europe/UK+LatAm"
+    "cluster": 2,
+    "bloc": "C:EU+UK"
   },
   {
     "qubit": 37,
@@ -377,6 +377,106 @@
     "business_type": "energy",
     "region": "LATAM",
     "cluster": 1,
-    "bloc": "B:Europe/UK+LatAm"
+    "bloc": "B:US+APAC"
+  },
+  {
+    "qubit": 38,
+    "ticker": "ICBC",
+    "name": "Industrial & Commercial Bank of China",
+    "node_type": "bank",
+    "business_type": "universal",
+    "region": "APAC",
+    "cluster": 1,
+    "bloc": "B:US+APAC"
+  },
+  {
+    "qubit": 39,
+    "ticker": "DBS",
+    "name": "DBS Group",
+    "node_type": "bank",
+    "business_type": "universal",
+    "region": "APAC",
+    "cluster": 1,
+    "bloc": "B:US+APAC"
+  },
+  {
+    "qubit": 40,
+    "ticker": "ICICI",
+    "name": "ICICI Bank",
+    "node_type": "bank",
+    "business_type": "universal",
+    "region": "APAC",
+    "cluster": 1,
+    "bloc": "B:US+APAC"
+  },
+  {
+    "qubit": 41,
+    "ticker": "KB",
+    "name": "KB Financial Group",
+    "node_type": "bank",
+    "business_type": "universal",
+    "region": "APAC",
+    "cluster": 1,
+    "bloc": "B:US+APAC"
+  },
+  {
+    "qubit": 42,
+    "ticker": "CBA",
+    "name": "Commonwealth Bank of Australia",
+    "node_type": "bank",
+    "business_type": "universal",
+    "region": "OCEANIA",
+    "cluster": 3,
+    "bloc": "D:JP+OCEANIA"
+  },
+  {
+    "qubit": 43,
+    "ticker": "WBC",
+    "name": "Westpac Banking Corp",
+    "node_type": "bank",
+    "business_type": "universal",
+    "region": "OCEANIA",
+    "cluster": 3,
+    "bloc": "D:JP+OCEANIA"
+  },
+  {
+    "qubit": 44,
+    "ticker": "RJHI",
+    "name": "Al Rajhi Bank",
+    "node_type": "bank",
+    "business_type": "universal",
+    "region": "MEA",
+    "cluster": 3,
+    "bloc": "D:JP+OCEANIA"
+  },
+  {
+    "qubit": 45,
+    "ticker": "QNB",
+    "name": "Qatar National Bank",
+    "node_type": "bank",
+    "business_type": "universal",
+    "region": "MEA",
+    "cluster": 3,
+    "bloc": "D:JP+OCEANIA"
+  },
+  {
+    "qubit": 46,
+    "ticker": "SBK",
+    "name": "Standard Bank Group",
+    "node_type": "bank",
+    "business_type": "universal",
+    "region": "AFRICA",
+    "cluster": 1,
+    "bloc": "B:US+APAC"
+  },
+  {
+    "qubit": 47,
+    "ticker": "FSR",
+    "name": "FirstRand",
+    "node_type": "bank",
+    "business_type": "universal",
+    "region": "AFRICA",
+    "cluster": 1,
+    "bloc": "B:US+APAC"
   }
 ]

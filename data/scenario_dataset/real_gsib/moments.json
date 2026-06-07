@@ -1,30 +1,30 @@
 {
   "bernoulli": {
-    "marginal_rmse": 0.0006052424481582826,
-    "mean_default_rate": 0.0023947368421052633,
-    "n_unique_scenarios": 54,
-    "corr_rmse": 0.46893489166667135,
+    "marginal_rmse": 0.0006363977398870406,
+    "mean_default_rate": 0.00265625,
+    "n_unique_scenarios": 78,
+    "corr_rmse": 0.4235104174036193,
     "degenerate": false
   },
   "gaussian_copula": {
-    "marginal_rmse": 0.0008746442885990552,
-    "mean_default_rate": 0.0022500000000000003,
-    "n_unique_scenarios": 72,
-    "corr_rmse": 0.44637849208606306,
+    "marginal_rmse": 0.0005847916295570586,
+    "mean_default_rate": 0.0025520833333333333,
+    "n_unique_scenarios": 86,
+    "corr_rmse": 0.39436380440029173,
     "degenerate": false
   },
   "student_t_copula": {
-    "marginal_rmse": 0.0009536301832030011,
-    "mean_default_rate": 0.002348684210526316,
-    "n_unique_scenarios": 72,
-    "corr_rmse": 0.3678959557141127,
+    "marginal_rmse": 0.0008745844251223928,
+    "mean_default_rate": 0.002427083333333333,
+    "n_unique_scenarios": 90,
+    "corr_rmse": 0.3630038546705475,
     "degenerate": false
   },
   "entangled_born_machine": {
-    "marginal_rmse": 0.0006326136261573885,
-    "mean_default_rate": 0.002111842105263158,
-    "n_unique_scenarios": 53,
-    "corr_rmse": 0.43856411668045475,
+    "marginal_rmse": 0.0006764660006238303,
+    "mean_default_rate": 0.002395833333333333,
+    "n_unique_scenarios": 73,
+    "corr_rmse": 0.4108922189677439,
     "degenerate": false
   }
 }
