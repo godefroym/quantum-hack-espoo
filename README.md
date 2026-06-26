@@ -80,6 +80,12 @@ uv run python scripts/run_mvp.py             # fast smoke test / dashboard feed
 uv run pytest                                # tests
 ```
 
+For quick start to visualisation:
+```bash
+cd frontend 
+npm run dev
+```
+
 **Entry points.** One canonical run, one smoke test, the rest specialized:
 
 | Script | Role |
